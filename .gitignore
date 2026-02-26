@@ -10,3 +10,6 @@ config/spatch-ex.yaml
 
 # Runtime web UI state
 config/_web_run.yaml
+
+# Git patch files
+*.patch
