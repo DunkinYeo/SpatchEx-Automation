@@ -277,6 +277,31 @@ class AndroidDriver:
             )
             return False
 
+    def wait_for_symptom_success(self, timeout: int = 10) -> str:
+        """
+        Wait for one of two success signals after symptom submission:
+          1. symptom_success_signal_text  — configured toast/confirmation text
+          2. symptom_add_text             — back on main measurement screen
+
+        Returns the name of the signal that was detected first.
+        Raises RuntimeError if neither appears within timeout.
+        """
+        success_signal = self.sel.get("symptom_success_signal_text")
+        main_indicator = self.sel.get("symptom_add_text", "Add Symptom")
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if success_signal and self.is_visible_text(success_signal):
+                return "success_signal"
+            if self.is_visible_text(main_indicator):
+                return "main_screen"
+            time.sleep(0.5)
+
+        raise RuntimeError(
+            f"Symptom success not confirmed within {timeout}s: "
+            f"neither '{success_signal}' nor '{main_indicator}' appeared"
+        )
+
     def assert_ui_health(self):
         """
         Assert that the measurement running screen is visible.

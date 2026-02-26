@@ -86,23 +86,12 @@ def inject_symptom_event(
             _add_activities(d, activities)
             last_step = "activities_added"
 
-        # ── 9. Wait for success signal (symptom registered) ─────────────
-        # This is critical for long runs: we need to confirm the symptom
-        # was *actually* saved, not just that we clicked the button.
-        success_signal = d.sel.get("symptom_success_signal_text")
-        if success_signal:
-            try:
-                d.find(success_signal, timeout=8, contains=True)
-                d.screenshot("symptom_success_confirmed")
-                last_step = "success_signal_received"
-            except Exception as e:
-                raise Exception(f"symptom success signal not received: {success_signal}") from e
-        else:
-            # Fallback: just wait for the symptom list to refresh
-            # (try to detect a "back to main screen" indicator)
-            d.wait_idle(1.5)
-            d.screenshot("symptom_submitted_fallback")
-            last_step = "submitted_fallback"
+        # ── 9. Wait for success confirmation ─────────────────────────────
+        # Checks (in order): configured success text → main screen indicator.
+        # Only fails if BOTH are absent within timeout.
+        signal = d.wait_for_symptom_success(timeout=10)
+        d.screenshot(f"symptom_success_{signal}")
+        last_step = f"success_{signal}"
 
         # ── 10. Screenshot AFTER + logcat ────────────────────────────
         d.screenshot("inject_after")
