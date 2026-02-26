@@ -14,13 +14,21 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 
 ## 사용 방법 (Web UI — 비개발자용)
 
-### 1. 최초 1회 설치
+### 1. 최초 1회 설치 (아무것도 없는 환경)
+
+| OS | 방법 |
+|----|------|
+| Mac | `install.sh` 더블클릭 (Python·Node·adb·Appium 자동 설치) |
+| Windows | `install.bat` 더블클릭 (동일) |
+
+> 설치 스크립트가 Python, Node.js, ADB, Appium, UiAutomator2 드라이버를 모두 자동으로 설치합니다.
+> 설치 시간: 약 5~15분 (인터넷 속도에 따라 다름)
+
+이미 Python·Appium이 설치된 환경이라면 수동으로:
 ```bash
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate.bat
 pip install -r requirements.txt
-
-# Appium 드라이버 설치 (최초 1회)
 appium driver install uiautomator2
 ```
 
