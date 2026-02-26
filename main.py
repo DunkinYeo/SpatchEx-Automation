@@ -2,16 +2,16 @@ import argparse
 import datetime
 import os
 import random
-import time
+
 import yaml
 
 from src.android.driver import AndroidDriver
-from src.orchestrator.scheduler import LongRunScheduler
 from src.orchestrator.reporting import RunReporter
-from src.workflows.measurement_start import ensure_measurement_started
-from src.workflows.symptom_inject import inject_symptom_event
+from src.orchestrator.scheduler import LongRunScheduler
 from src.utils.artifacts import ArtifactManager
 from src.utils.slack import slack_notify
+from src.workflows.measurement_start import ensure_measurement_started
+from src.workflows.symptom_inject import inject_symptom_event
 
 
 def load_cfg(path: str) -> dict:
@@ -39,63 +39,78 @@ def main():
     reporter = RunReporter(out_dir=out_dir, run_name=run_cfg.get("name", "run"))
     artifacts = ArtifactManager(out_dir=out_dir)
 
-    reporter.log_event("run_start", {"platform": platform, "duration_hours": duration_hours, "interval_hours": interval_hours})
+    reporter.log_event(
+        "run_start",
+        {
+            "platform": platform,
+            "duration_hours": duration_hours,
+            "interval_hours": interval_hours,
+        },
+    )
 
+    driver = None
     try:
         if platform != "android":
-            raise RuntimeError("Only android is implemented in MVP. Set platform: android")
+            raise RuntimeError(
+                "Only android is implemented in MVP. Set platform: android"
+            )
 
         a_cfg = cfg.get("android") or {}
         sel = (cfg.get("selectors") or {}).get("android") or {}
+        catalog = cfg.get("symptom_catalog") or []
 
         driver = AndroidDriver(a_cfg, sel, artifacts=artifacts, reporter=reporter)
 
-        # 1) Ensure measurement running (idempotent)
+        # 1) Ensure measurement is running (idempotent)
         ensure_measurement_started(driver)
         reporter.log_event("measurement_started", {})
 
-        # 2) Schedule symptom injections
-        plan = cfg.get("symptom_plan") or []
-        catalog = cfg.get("symptom_catalog") or []
-
-        scheduler = LongRunScheduler(
-            duration_hours=duration_hours,
-            interval_hours=interval_hours,
-            start_immediately=start_immediately,
-            plan=plan,
-            catalog=catalog,
-            reporter=reporter,
-        )
-
+        # 2) Build the job callable
         def job(at_hour: float | None = None, payload: dict | None = None):
-            # choose symptoms
             payload = payload or {}
             symptoms = payload.get("symptoms") or []
             other_text = payload.get("other_text") or ""
             activities = payload.get("activities") or []
             if not symptoms:
-                # random symptom (avoid empty)
                 pick = random.choice(catalog) if catalog else "두근거림"
                 symptoms = [pick]
+            inject_symptom_event(
+                driver,
+                symptoms=symptoms,
+                other_text=other_text,
+                activities=activities,
+            )
 
-            inject_symptom_event(driver, symptoms=symptoms, other_text=other_text, activities=activities)
-
-        scheduler.run(job)
+        # 3) Run scheduler (blocks until duration_hours elapses)
+        scheduler = LongRunScheduler(
+            duration_hours=duration_hours,
+            interval_hours=interval_hours,
+            start_immediately=start_immediately,
+            plan=cfg.get("symptom_plan") or [],
+            catalog=catalog,
+            reporter=reporter,
+        )
+        scheduler.run(job, driver=driver)
 
         reporter.log_event("run_complete", {"status": "ok"})
+
     except Exception as e:
         reporter.log_event("run_failed", {"error": str(e)})
         raise
+
     finally:
+        if driver:
+            driver.close()
         try:
             reporter.render_html_summary()
         except Exception:
             pass
-        try:
-            if cfg.get("slack", {}).get("enabled") and cfg.get("slack", {}).get("webhook_url"):
-                slack_notify(cfg["slack"]["webhook_url"], f"✅ Long-run automation finished: {run_id}")
-        except Exception:
-            pass
+        slack_cfg = cfg.get("slack") or {}
+        if slack_cfg.get("enabled") and slack_cfg.get("webhook_url"):
+            slack_notify(
+                slack_cfg["webhook_url"],
+                f"Long-run automation finished: {run_id}",
+            )
 
 
 if __name__ == "__main__":

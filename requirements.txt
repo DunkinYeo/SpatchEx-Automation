@@ -1,6 +1,12 @@
+# Runtime
 Appium-Python-Client==4.0.0
 selenium==4.22.0
 PyYAML==6.0.2
 APScheduler==3.10.4
 requests==2.32.3
 jinja2==3.1.4
+
+# Dev / formatting
+black==24.10.0
+ruff==0.8.6
+pre-commit==4.0.1
