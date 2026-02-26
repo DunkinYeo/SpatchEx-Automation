@@ -4,3 +4,9 @@ output/
 config/run.yaml
 .DS_Store
 config/spatch-ex.yaml
+
+# Local assistant settings (sensitive)
+.claude/
+
+# Runtime web UI state
+config/_web_run.yaml
