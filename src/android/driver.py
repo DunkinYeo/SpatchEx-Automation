@@ -277,5 +277,23 @@ class AndroidDriver:
             )
             return False
 
+    def assert_ui_health(self):
+        """
+        Assert that the measurement running screen is visible.
+        Uses symptom_add_text selector as the indicator (it's only visible
+        when measurement is active and the screen is unobstructed).
+        Raises RuntimeError if the indicator is not found — callers should
+        treat this as a recoverable failure.
+        """
+        indicator = self.sel.get("symptom_add_text", "Add Symptom")
+        self.reporter.log_event("ui_health_check", {"indicator": indicator})
+        if not self.is_visible_text(indicator):
+            try:
+                self.screenshot("ui_health_failed")
+            except Exception:
+                pass
+            raise RuntimeError(f"UI health check failed: '{indicator}' not visible on screen")
+        self.reporter.log_event("ui_health_ok", {"indicator": indicator})
+
     def wait_idle(self, seconds: float = 1.0):
         time.sleep(seconds)
