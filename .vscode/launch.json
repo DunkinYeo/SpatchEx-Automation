@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Orchestrator",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "--config",
+        "config/run.yaml"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+platform: android
+run:
+  name: "spatch_ex_longrun"
+  duration_hours: 24
+  symptom_interval_hours: 4
+  start_immediately: true
+
+android:
+  appium_server_url: "http://127.0.0.1:4723"
+  device_name: "Android"
+  udid: ""               # optional; set if you have multiple devices
+  app_package: "com.example.spatch"   # TODO: set real package
+  app_activity: ".MainActivity"       # TODO: set real activity
+  no_reset: true
+  new_command_timeout: 3600
+
+# If your app can be in one of these states, selectors below help the bot recover.
+selectors:
+  android:
+    # measurement start flow
+    consent_agree_text: "동의"
+    use_spatch_text: "S-Patch 사용하기"
+    duration_sheet_title: "검사 기간을 선택해주세요."
+    duration_24h_text: "24 시간"
+    duration_48h_text: "48 시간"
+    duration_72h_text: "72 시간"
+    confirm_text: "확인"
+
+    # main running screen
+    symptom_add_text: "증상 추가"
+    # symptom picker
+    symptom_picker_title: "증상을 선택해주세요."
+    symptom_done_text: "환자일지 등록"   # final submit
+
+    # optional activity
+    add_activity_text: "활동 추가"
+    activity_submit_text: "활동 추가"
+
+symptom_plan:
+  # If empty, tool uses random pick from `symptom_catalog`
+  # Otherwise, it injects at the given offsets.
+  - at_hour: 4
+    symptoms: ["두근거림"]
+    other_text: ""
+    activities: []
+  - at_hour: 8
+    symptoms: ["가슴 통증"]
+    other_text: "mild after walking"
+    activities: ["걷기"]
+
+symptom_catalog:
+  - "두근거림"
+  - "가슴 통증"
+  - "어지러움"
+  - "호흡 가쁨"
+  - "실신"
+  - "기타"
+
+slack:
+  enabled: false
+  webhook_url: ""   # incoming webhook
+  mention: ""

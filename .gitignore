@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+output/
+config/run.yaml
+.DS_Store
+config/spatch-ex.yaml
