@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-Patch EX 장기 실행 테스트</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1e3a5f;
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.3px; }
+    .header-chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* ── Chips ── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 500; white-space: nowrap;
+    }
+    .chip-ok    { background: rgba(16,185,129,.18); color: #34d399; border: 1px solid rgba(52,211,153,.3); }
+    .chip-err   { background: rgba(239,68,68,.18);  color: #f87171; border: 1px solid rgba(248,113,113,.3); }
+    .chip-warn  { background: rgba(245,158,11,.18); color: #fbbf24; border: 1px solid rgba(251,191,36,.3); }
+    .chip-blue  { background: rgba(59,130,246,.18); color: #60a5fa; border: 1px solid rgba(96,165,250,.3); }
+
+    /* ── Layout ── */
+    main {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.04);
+    }
+    .card-title {
+      font-size: .95rem; font-weight: 700; color: #1e3a5f;
+      border-bottom: 2px solid #e8f0fe;
+      padding-bottom: 10px; margin-bottom: 18px;
+    }
+
+    /* ── Form fields ── */
+    .field { margin-bottom: 16px; }
+    .field > label {
+      display: block; font-size: .82rem; font-weight: 600;
+      color: #4b5563; margin-bottom: 6px;
+    }
+    .field select, .field input[type=text] {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid #d1d5db; border-radius: 9px;
+      font-size: .88rem; background: #fafafa; color: #1a1a2e;
+      transition: border-color .15s;
+    }
+    .field select:focus, .field input:focus {
+      outline: none; border-color: #3b82f6; background: white;
+    }
+
+    /* ── Duration toggle buttons ── */
+    .btn-group { display: flex; gap: 7px; flex-wrap: wrap; }
+    .btn-toggle {
+      padding: 8px 16px;
+      border: 1.5px solid #d1d5db; border-radius: 9px;
+      font-size: .83rem; cursor: pointer;
+      background: white; color: #555;
+      transition: all .15s;
+    }
+    .btn-toggle:hover { border-color: #3b82f6; color: #3b82f6; }
+    .btn-toggle.active {
+      background: #2563eb; border-color: #2563eb;
+      color: white; font-weight: 600;
+    }
+
+    /* ── Symptom checkboxes ── */
+    .symptom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .symptom-label {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px;
+      border: 1.5px solid #d1d5db; border-radius: 9px;
+      cursor: pointer; font-size: .85rem;
+      user-select: none; transition: all .15s;
+    }
+    .symptom-label:hover { border-color: #93c5fd; }
+    .symptom-label input[type=checkbox] { display: none; }
+    .symptom-label .checkmark {
+      width: 16px; height: 16px; border: 2px solid #d1d5db;
+      border-radius: 4px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .symptom-label.checked { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; font-weight: 500; }
+    .symptom-label.checked .checkmark { background: #2563eb; border-color: #2563eb; }
+    .symptom-label.checked .checkmark::after { content: '✓'; color: white; font-size: .7rem; font-weight: 700; }
+
+    /* ── Action buttons ── */
+    .action-row { margin-top: 20px; display: flex; gap: 10px; }
+    .btn-primary {
+      flex: 1; padding: 13px;
+      background: #2563eb; color: white;
+      border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 600; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+    .btn-stop {
+      padding: 13px 18px;
+      background: white; color: #dc2626;
+      border: 1.5px solid #dc2626; border-radius: 10px;
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-stop:hover { background: #fef2f2; }
+    .btn-secondary {
+      padding: 7px 14px;
+      background: white; color: #2563eb;
+      border: 1.5px solid #2563eb; border-radius: 8px;
+      font-size: .8rem; font-weight: 500; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #eff6ff; }
+
+    /* ── Progress ── */
+    #progress-section { margin-bottom: 14px; }
+    .progress-bar {
+      height: 8px; background: #e5e7eb;
+      border-radius: 4px; overflow: hidden; margin: 6px 0 4px;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      border-radius: 4px; transition: width .8s ease;
+    }
+    .progress-meta {
+      display: flex; justify-content: space-between;
+      font-size: .76rem; color: #6b7280;
+    }
+
+    /* ── Next inject box ── */
+    #next-inject-box {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 9px; padding: 10px 14px;
+      font-size: .82rem; color: #1d4ed8;
+      margin-bottom: 12px;
+    }
+
+    /* ── Log ── */
+    .log-wrap {
+      border: 1px solid #e5e7eb; border-radius: 10px;
+      background: #fafafa; max-height: 520px; overflow-y: auto;
+    }
+    .log-empty {
+      padding: 48px 20px; text-align: center;
+      color: #9ca3af; font-size: .88rem;
+    }
+    .log-item {
+      display: grid; grid-template-columns: 62px 1fr;
+      gap: 10px; padding: 9px 14px;
+      border-bottom: 1px solid #f3f4f6; font-size: .81rem;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: #9ca3af; font-variant-numeric: tabular-nums; padding-top: 1px; }
+    .log-item.green  .log-msg { color: #059669; }
+    .log-item.red    .log-msg { color: #dc2626; }
+    .log-item.blue   .log-msg { color: #2563eb; }
+    .log-item.purple .log-msg { color: #7c3aed; }
+    .log-item.gray   .log-msg { color: #6b7280; }
+
+    /* ── Appium warning banner ── */
+    #appium-warn {
+      background: #fef3c7; border: 1px solid #fcd34d;
+      border-radius: 9px; padding: 10px 14px;
+      font-size: .82rem; color: #92400e;
+      margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🩺 S-Patch EX 장기 실행 테스트</h1>
+  <div class="header-chips">
+    <span class="chip chip-warn" id="appium-chip">Appium 확인 중…</span>
+    <span class="chip chip-warn" id="run-chip">대기 중</span>
+  </div>
+</header>
+
+<main>
+  <!-- ── Left: Config ── -->
+  <div>
+    <div class="card">
+      <div class="card-title">테스트 설정</div>
+
+      <!-- Appium warning -->
+      <div id="appium-warn" style="display:none">
+        ⚠️ Appium 서버가 실행되지 않았습니다.
+        <button class="btn-secondary" onclick="startAppium()">Appium 시작</button>
+      </div>
+
+      <!-- Device -->
+      <div class="field">
+        <label>연결된 디바이스</label>
+        <select id="device-select">
+          <option value="">디바이스 확인 중…</option>
+        </select>
+      </div>
+
+      <!-- Run name -->
+      <div class="field">
+        <label>테스트 이름 <span style="color:#9ca3af;font-weight:400">(결과 파일에 표시됨)</span></label>
+        <input type="text" id="run-name" placeholder="예: Alice_UAT_Round1" value="uat_run">
+      </div>
+
+      <!-- Duration -->
+      <div class="field">
+        <label>측정 시간</label>
+        <div class="btn-group" id="duration-group">
+          <button class="btn-toggle" data-val="1">1시간</button>
+          <button class="btn-toggle active" data-val="24">24시간</button>
+          <button class="btn-toggle" data-val="48">48시간</button>
+          <button class="btn-toggle" data-val="72">72시간</button>
+        </div>
+        <input type="hidden" id="duration-val" value="24">
+      </div>
+
+      <!-- Interval -->
+      <div class="field">
+        <label>증상 주입 간격</label>
+        <select id="interval-select">
+          <option value="1">1시간마다</option>
+          <option value="2">2시간마다</option>
+          <option value="4" selected>4시간마다</option>
+          <option value="8">8시간마다</option>
+          <option value="12">12시간마다</option>
+        </select>
+      </div>
+
+      <!-- Symptoms -->
+      <div class="field">
+        <label>주입할 증상 선택</label>
+        <div class="symptom-grid" id="symptom-grid">
+          <label class="symptom-label checked">
+            <input type="checkbox" value="Chest Pain" checked>
+            <span class="checkmark"></span>Chest Pain
+          </label>
+          <label class="symptom-label checked">
+            <input type="checkbox" value="Palpitations" checked>
+            <span class="checkmark"></span>Palpitations
+          </label>
+          <label class="symptom-label checked">
+            <input type="checkbox" value="Dizziness" checked>
+            <span class="checkmark"></span>Dizziness
+          </label>
+          <label class="symptom-label checked">
+            <input type="checkbox" value="Short Breath" checked>
+            <span class="checkmark"></span>Short Breath
+          </label>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="start-btn">▶ 테스트 시작</button>
+        <button class="btn-stop" id="stop-btn" style="display:none" onclick="stopTest()">■ 중지</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Log ── -->
+  <div>
+    <div class="card">
+      <div class="card-title">진행 상황</div>
+
+      <!-- Progress bar -->
+      <div id="progress-section" style="display:none">
+        <div style="font-size:.81rem;color:#6b7280">
+          경과: <strong id="elapsed-text">-</strong> / <span id="total-text">-</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-meta">
+          <span id="progress-pct">0%</span>
+          <span id="run-name-display" style="color:#9ca3af"></span>
+        </div>
+      </div>
+
+      <!-- Next inject -->
+      <div id="next-inject-box" style="display:none">
+        🕐 다음 증상 주입: <strong id="next-inject-time">-</strong>
+      </div>
+
+      <!-- Event log -->
+      <div class="log-wrap" id="log-wrap">
+        <div class="log-empty" id="log-empty">테스트를 시작하면 여기에 로그가 표시됩니다.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Event display config ──────────────────────────────────────────────────────
+const EVENT_INFO = {
+  run_start:                   { text: '테스트 시작',           color: 'blue'   },
+  appium_connect:              { text: 'Appium 연결됨',          color: 'blue'   },
+  ensure_measurement_started:  { text: '측정 상태 확인 중…',     color: 'gray'   },
+  measurement_already_running: { text: '측정 이미 진행 중 ✓',   color: 'green'  },
+  measurement_confirmed_running:{ text: '측정 진행 중 확인됨 ✓',color: 'green'  },
+  measurement_started:         { text: '측정 시작됨 ✓',         color: 'green'  },
+  tapping_start_now:           { text: 'Start Now 탭',           color: 'gray'   },
+  offline_mode_detected:       { text: '오프라인 모드 감지됨',   color: 'gray'   },
+  inject_symptom_start:        { text: null,                     color: 'purple' },
+  inject_symptom_done:         { text: null,                     color: 'green'  },
+  inject_symptom_failed:       { text: '증상 주입 실패 ✗',      color: 'red'    },
+  schedule_add:                { text: null,                     color: 'gray'   },
+  session_check_failed:        { text: '세션 오류 ⚠️',           color: 'red'    },
+  run_complete:                { text: '테스트 완료 🎉',         color: 'green'  },
+  run_failed:                  { text: null,                     color: 'red'    },
+};
+
+function fmtEvent(ev) {
+  const info = EVENT_INFO[ev.event] || { text: ev.event, color: 'gray' };
+  let text = info.text;
+
+  if (ev.event === 'inject_symptom_start') {
+    const s = (ev.data?.symptoms || []).join(', ');
+    text = `증상 주입 시작: ${s}`;
+  } else if (ev.event === 'inject_symptom_done') {
+    const sec = ev.data?.elapsed_sec ?? '?';
+    text = `증상 주입 완료 ✓  (${sec}초)`;
+  } else if (ev.event === 'schedule_add') {
+    const d = ev.data || {};
+    const t = d.run_at ? new Date(d.run_at).toLocaleTimeString('ko-KR') : '-';
+    text = `다음 주입 예약 → ${t}`;
+  } else if (ev.event === 'run_failed') {
+    text = `테스트 실패 ✗  — ${ev.data?.error || ''}`;
+  }
+  return { text: text || ev.event, color: info.color };
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let pollTimer   = null;
+let seenEvents  = 0;
+let runStartTs  = null;
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  // Load devices + appium status
+  const r = await fetch('/api/init').then(r => r.json());
+  updateAppiumUI(r.appium);
+  populateDevices(r.devices);
+
+  // Restore running state if process was already going
+  const s = await fetch('/api/status').then(r => r.json());
+  if (s.events.length > 0) {
+    renderLog(s.events, true);
+    updateProgress(s.events);
+    updateNextInject(s.events);
+  }
+  if (s.running) {
+    setUIRunning(true);
+    startPolling();
+  } else if (s.exit_code !== null && s.exit_code !== undefined) {
+    showFinished(s.exit_code);
+  }
+}
+
+function updateAppiumUI(ok) {
+  const chip = document.getElementById('appium-chip');
+  chip.className = 'chip ' + (ok ? 'chip-ok' : 'chip-err');
+  chip.textContent  = ok ? '✓ Appium 연결됨' : '✗ Appium 없음';
+  document.getElementById('appium-warn').style.display = ok ? 'none' : 'flex';
+}
+
+function populateDevices(devices) {
+  const sel = document.getElementById('device-select');
+  sel.innerHTML = '';
+  if (!devices.length) {
+    sel.innerHTML = '<option value="">연결된 디바이스 없음</option>';
+  } else {
+    devices.forEach(d => {
+      const o = document.createElement('option');
+      o.value = o.textContent = d;
+      sel.appendChild(o);
+    });
+  }
+}
+
+// ── Duration toggle ──────────────────────────────────────────────────────────
+document.getElementById('duration-group').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-toggle');
+  if (!btn) return;
+  document.querySelectorAll('#duration-group .btn-toggle').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('duration-val').value = btn.dataset.val;
+});
+
+// ── Symptom toggle ──────────────────────────────────────────────────────────
+document.getElementById('symptom-grid').addEventListener('click', e => {
+  const lbl = e.target.closest('.symptom-label');
+  if (!lbl) return;
+  const cb = lbl.querySelector('input');
+  cb.checked = !cb.checked;
+  lbl.classList.toggle('checked', cb.checked);
+});
+
+// ── Appium start ─────────────────────────────────────────────────────────────
+async function startAppium() {
+  const btn = document.querySelector('#appium-warn button');
+  btn.textContent = '시작 중…'; btn.disabled = true;
+  const r = await fetch('/api/appium/start', { method: 'POST' }).then(r => r.json());
+  btn.textContent = 'Appium 시작'; btn.disabled = false;
+  if (r.error) { alert(r.error); return; }
+  updateAppiumUI(r.running);
+}
+
+// ── Start test ────────────────────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', async () => {
+  const device = document.getElementById('device-select').value;
+  if (!device) { alert('연결된 디바이스를 선택해주세요.'); return; }
+
+  const symptoms = [...document.querySelectorAll('#symptom-grid input:checked')].map(c => c.value);
+  if (!symptoms.length) { alert('증상을 하나 이상 선택해주세요.'); return; }
+
+  const body = {
+    device,
+    run_name:       document.getElementById('run-name').value || 'uat_run',
+    duration_hours: parseInt(document.getElementById('duration-val').value),
+    interval_hours: parseFloat(document.getElementById('interval-select').value),
+    symptoms,
+  };
+
+  const r = await fetch('/api/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.json());
+
+  if (r.error) { alert(r.error); return; }
+
+  seenEvents  = 0;
+  runStartTs  = null;
+  document.getElementById('log-wrap').innerHTML =
+    '<div class="log-empty" id="log-empty">로그 대기 중…</div>';
+  document.getElementById('progress-section').style.display = 'none';
+  document.getElementById('next-inject-box').style.display  = 'none';
+
+  setUIRunning(true);
+  startPolling();
+});
+
+// ── Stop test ─────────────────────────────────────────────────────────────────
+async function stopTest() {
+  if (!confirm('테스트를 중지하시겠습니까?')) return;
+  await fetch('/api/stop', { method: 'POST' });
+  stopPolling();
+  setUIRunning(false);
+  const chip = document.getElementById('run-chip');
+  chip.className = 'chip chip-warn'; chip.textContent = '중지됨';
+}
+
+// ── UI state ──────────────────────────────────────────────────────────────────
+function setUIRunning(running) {
+  document.getElementById('start-btn').disabled = running;
+  document.getElementById('stop-btn').style.display = running ? '' : 'none';
+  const chip = document.getElementById('run-chip');
+  chip.className = 'chip ' + (running ? 'chip-blue' : 'chip-warn');
+  chip.textContent = running ? '● 실행 중' : '대기 중';
+}
+
+function showFinished(code) {
+  const chip = document.getElementById('run-chip');
+  chip.className = 'chip ' + (code === 0 ? 'chip-ok' : 'chip-err');
+  chip.textContent = code === 0 ? '완료 ✓' : '실패 ✗';
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  poll();
+  pollTimer = setInterval(poll, 2000);
+}
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function poll() {
+  let s;
+  try { s = await fetch('/api/status').then(r => r.json()); }
+  catch { return; }
+
+  renderLog(s.events);
+  updateProgress(s.events);
+  updateNextInject(s.events);
+
+  if (!s.running && pollTimer) {
+    stopPolling();
+    setUIRunning(false);
+    showFinished(s.exit_code ?? -1);
+  }
+}
+
+// ── Log rendering ─────────────────────────────────────────────────────────────
+function renderLog(events, reset = false) {
+  if (!events?.length) return;
+  const wrap  = document.getElementById('log-wrap');
+  const empty = document.getElementById('log-empty');
+
+  if (reset) { wrap.innerHTML = ''; seenEvents = 0; }
+
+  if (events.length > seenEvents) {
+    if (seenEvents === 0) wrap.innerHTML = '';
+
+    for (let i = seenEvents; i < events.length; i++) {
+      const ev = events[i];
+      const { text, color } = fmtEvent(ev);
+      const time = ev.ts ? ev.ts.split('T')[1].slice(0, 8) : '';
+
+      const div = document.createElement('div');
+      div.className = `log-item ${color}`;
+      div.innerHTML = `<span class="log-time">${time}</span><span class="log-msg">${text}</span>`;
+      wrap.appendChild(div);
+    }
+    seenEvents = events.length;
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function updateProgress(events) {
+  const startEv = events?.find(e => e.event === 'run_start');
+  if (!startEv) return;
+
+  document.getElementById('progress-section').style.display = '';
+
+  const tH = startEv.data?.duration_hours || 24;
+  if (!runStartTs) runStartTs = new Date(startEv.ts);
+
+  const elapsedMs = Date.now() - runStartTs.getTime();
+  const pct       = Math.min(100, (elapsedMs / (tH * 3_600_000)) * 100);
+  const elH = Math.floor(elapsedMs / 3_600_000);
+  const elM = Math.floor((elapsedMs % 3_600_000) / 60_000);
+
+  document.getElementById('progress-fill').style.width = pct.toFixed(1) + '%';
+  document.getElementById('progress-pct').textContent  = pct.toFixed(1) + '%';
+  document.getElementById('elapsed-text').textContent  = `${elH}시간 ${elM}분`;
+  document.getElementById('total-text').textContent    = `${tH}시간`;
+  document.getElementById('run-name-display').textContent =
+    document.getElementById('run-name').value || '';
+}
+
+// ── Next inject ───────────────────────────────────────────────────────────────
+function updateNextInject(events) {
+  const box  = document.getElementById('next-inject-box');
+  const time = document.getElementById('next-inject-time');
+
+  let runAt = null;
+  for (let i = (events?.length ?? 0) - 1; i >= 0; i--) {
+    const ev = events[i];
+    if (ev.event === 'schedule_add' && ev.data?.run_at) {
+      runAt = ev.data.run_at; break;
+    }
+  }
+
+  if (runAt && new Date(runAt) > new Date()) {
+    box.style.display = '';
+    time.textContent  = new Date(runAt).toLocaleTimeString('ko-KR');
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
