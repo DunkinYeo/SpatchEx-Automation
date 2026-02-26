@@ -1,0 +1,52 @@
+platform: android
+
+run:
+  name: "spatch_ex_test"
+  duration_hours: 1
+  symptom_interval_hours: 0.02
+  start_immediately: true
+
+android:
+  appium_server_url: "http://127.0.0.1:4723"
+  device_name: "Pixel 7"
+  udid: "55ETQWBXYE1RA1"
+  app_package: "com.wellysis.spatchcardio.ex"
+  app_activity: "com.wellysis.spatchcardio.ex.MainActivity"
+  no_reset: true
+  new_command_timeout: 300
+
+selectors:
+  android:
+    start_now_text: "Start Now"
+    consent_agree_text: ["동의", "Agree"]
+    use_spatch_text: ["S-Patch 사용하기", "Use S-Patch"]
+    duration_sheet_title: ["검사 기간을 선택해주세요", "Select a test period"]
+    duration_24h_text: ["24 시간", "24 Hours"]
+    duration_48h_text: ["48 시간", "48 Hours"]
+    duration_72h_text: ["72 시간", "72 Hours"]
+    confirm_text: ["확인", "Confirm", "OK"]
+    offline_mode_text: ["오프라인", "Offline"]
+    offline_checkbox_id: ""
+    offline_agree_text: ["동의합니다", "I agree"]
+    offline_confirm_text: ""
+    symptom_add_text: ["증상 추가", "Add Symptom"]
+    symptom_picker_title: ["증상을 선택해주세요.", "Check your symptoms"]
+    # symptom_confirm_text: not set → English app auto-closes picker
+    # symptom_done_text: not set → English app skips journal screen
+    other_text_field_id: ""
+    keyboard_done_text: ["완료", "Done"]
+    add_activity_text: ["활동 추가", "Add Activity"]
+    activity_submit_text: ["활동 추가", "Add Activity"]
+
+symptom_plan: []
+
+symptom_catalog:
+  - "Chest Pain"
+  - "Palpitations"
+  - "Dizziness"
+  - "Short Breath"
+
+slack:
+  enabled: false
+  webhook_url: ""
+  mention: ""

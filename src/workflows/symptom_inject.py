@@ -64,20 +64,22 @@ def inject_symptom_event(
             _enter_other_text(d, other_text)
             last_step = "other_text_entered"
 
-        # ── 6. Submit symptom picker ("증상 추가" confirm button) ──────
-        # The picker has a "증상 추가" submit button at the bottom.
-        # Wait briefly so the selection animation settles.
+        # ── 6. Submit symptom picker (optional confirm button) ────────
+        # Some app versions (e.g. Korean) have an explicit confirm button;
+        # others (e.g. English) auto-close the picker on selection.
         d.wait_idle(0.5)
-        symptom_confirm = d.sel.get("symptom_confirm_text", "증상 추가")
-        d.tap_text(symptom_confirm, timeout=10, contains=True)
-        d.screenshot("symptom_picker_submitted")
-        last_step = "picker_submitted"
+        symptom_confirm = d.sel.get("symptom_confirm_text")
+        if symptom_confirm and d.is_visible_text(symptom_confirm):
+            d.tap_text(symptom_confirm, timeout=10, contains=True)
+            d.screenshot("symptom_picker_submitted")
+            last_step = "picker_submitted"
 
-        # ── 7. Journal submission screen ──────────────────────────────
-        submit = d.sel.get("symptom_done_text", "환자일지 등록")
-        d.tap_text(submit, timeout=15, contains=True)
-        d.screenshot("journal_submitted")
-        last_step = "journal_submitted"
+        # ── 7. Journal submission screen (optional) ────────────────────
+        submit = d.sel.get("symptom_done_text")
+        if submit and d.is_visible_text(submit, contains=True):
+            d.tap_text(submit, timeout=15, contains=True)
+            d.screenshot("journal_submitted")
+            last_step = "journal_submitted"
 
         # ── 8. Optional: add activities ───────────────────────────────
         if activities:

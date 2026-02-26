@@ -3,7 +3,7 @@ Best-effort, idempotent measurement start flow.
 
 Supported paths:
   A) Already running      → '증상 추가' visible → return immediately
-  B) Online mode          → consent → S-Patch 사용하기 → duration → 확인
+  B) Home screen          → 'Start Now' → consent → S-Patch 사용하기 → duration → 확인
   C) Offline mode         → offline notice visible → check consent checkbox
                             → S-Patch 사용하기 → duration → 확인
 
@@ -20,13 +20,24 @@ from src.utils.retry import retry
 def ensure_measurement_started(d: AndroidDriver):
     d.reporter.log_event("ensure_measurement_started", {})
 
+    # ── 0. Ensure app is in foreground ────────────────────────────────
+    d.bring_to_foreground()
+    d.wait_idle(1.5)
+
     # ── A. Already running? ───────────────────────────────────────────
     symptom_btn = d.sel.get("symptom_add_text", "증상 추가")
     if d.is_visible_text(symptom_btn):
         d.reporter.log_event("measurement_already_running", {})
         return
 
-    # ── B/C. Consent screen ───────────────────────────────────────────
+    # ── B. Home screen → tap "Start Now" first ────────────────────────
+    start_now = d.sel.get("start_now_text", "Start Now")
+    if d.is_visible_text(start_now):
+        d.reporter.log_event("tapping_start_now", {})
+        d.tap_text(start_now, contains=False)
+        d.wait_idle(2.0)
+
+    # ── Consent screen ────────────────────────────────────────────────
     agree = d.sel.get("consent_agree_text", "동의")
     if d.is_visible_text(agree):
         d.tap_text(agree)

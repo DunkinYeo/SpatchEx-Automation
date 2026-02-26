@@ -1,7 +1,7 @@
 import time
 
 from appium import webdriver
-from appium.options import UiAutomator2Options
+from appium.options.android.uiautomator2.base import UiAutomator2Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -142,17 +142,28 @@ class AndroidDriver:
         return self.find(text, timeout=timeout, contains=contains)
 
     @retry(tries=3, delay=2)
-    def tap_text(self, text: str, timeout: int = 10, contains: bool = True):
-        el = self.find(text, timeout=timeout, contains=contains)
-        el.click()
-        return True
+    def tap_text(self, text: str | list, timeout: int = 10, contains: bool = True):
+        texts = [text] if isinstance(text, str) else text
+        per = max(timeout // len(texts), 2)
+        last_exc: Exception = Exception(f"Could not find any of: {texts}")
+        for t in texts:
+            try:
+                el = self.find(t, timeout=per, contains=contains)
+                el.click()
+                return True
+            except Exception as e:
+                last_exc = e
+        raise last_exc
 
-    def is_visible_text(self, text: str, contains: bool = True) -> bool:
-        try:
-            self.find(text, timeout=2, contains=contains)
-            return True
-        except Exception:
-            return False
+    def is_visible_text(self, text: str | list, contains: bool = True) -> bool:
+        texts = [text] if isinstance(text, str) else text
+        for t in texts:
+            try:
+                self.find(t, timeout=2, contains=contains)
+                return True
+            except Exception:
+                pass
+        return False
 
     # ------------------------------------------------------------------
     # Artifact helpers
@@ -170,12 +181,19 @@ class AndroidDriver:
 
     def bring_to_foreground(self):
         pkg = self.cfg.get("app_package")
-        act = self.cfg.get("app_activity")
-        if pkg and act:
-            try:
-                self.drv.start_activity(pkg, act)
-            except Exception:
-                pass
+        if not pkg:
+            return
+        try:
+            # activate_app resumes the app without recreating the Activity
+            self.drv.activate_app(pkg)
+        except Exception:
+            # fallback: start_activity (may recreate Activity on some devices)
+            act = self.cfg.get("app_activity")
+            if act:
+                try:
+                    self.drv.start_activity(pkg, act)
+                except Exception:
+                    pass
 
     def wait_idle(self, seconds: float = 1.0):
         time.sleep(seconds)

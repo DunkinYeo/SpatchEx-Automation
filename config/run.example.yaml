@@ -18,6 +18,7 @@ android:
 selectors:
   android:
     # ── Measurement start ─────────────────────────────────────────────
+    start_now_text: "Start Now"
     consent_agree_text: "동의"
     use_spatch_text: "S-Patch 사용하기"
     duration_sheet_title: "검사 기간을 선택해주세요"
