@@ -40,6 +40,8 @@ selectors:
     symptom_picker_title: "증상을 선택해주세요."
     symptom_confirm_text: "증상 추가"      # submit button inside the picker
     symptom_done_text: "환자일지 등록"     # final journal registration button
+    symptom_success_signal_text: "등록되었습니다"  # critical: confirm symptom was saved
+                                                    # (e.g., toast/dialog message after submission)
 
     # ── 기타 (free-text) input ────────────────────────────────────────
     other_text_field_id: ""              # resource-id of the EditText (preferred)

@@ -10,3 +10,4 @@ Rules:
 2) Always capture artifacts on failures.
 3) Keep behavior deterministic and config-driven (YAML).
 4) Avoid broad refactors; keep patches minimal.
+5) After completing any multi-file change, update DEVLOG.md with reasoning and decisions.

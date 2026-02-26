@@ -86,22 +86,56 @@ def inject_symptom_event(
             _add_activities(d, activities)
             last_step = "activities_added"
 
-        # ── 9. Screenshot AFTER + logcat ─────────────────────────────
+        # ── 9. Wait for success signal (symptom registered) ─────────────
+        # This is critical for long runs: we need to confirm the symptom
+        # was *actually* saved, not just that we clicked the button.
+        success_signal = d.sel.get("symptom_success_signal_text")
+        if success_signal:
+            try:
+                d.find(success_signal, timeout=8, contains=True)
+                d.screenshot("symptom_success_confirmed")
+                last_step = "success_signal_received"
+            except Exception as e:
+                raise Exception(f"symptom success signal not received: {success_signal}") from e
+        else:
+            # Fallback: just wait for the symptom list to refresh
+            # (try to detect a "back to main screen" indicator)
+            d.wait_idle(1.5)
+            d.screenshot("symptom_submitted_fallback")
+            last_step = "submitted_fallback"
+
+        # ── 10. Screenshot AFTER + logcat ────────────────────────────
         d.screenshot("inject_after")
-        d.logcat("inject_logcat")
+        logcat_path = d.logcat("inject_logcat")
 
         elapsed = round(time.monotonic() - t_start, 1)
         d.reporter.log_event(
             "inject_symptom_done",
-            {"status": "ok", "elapsed_sec": elapsed, "last_step": last_step},
+            {
+                "status": "ok",
+                "elapsed_sec": elapsed,
+                "last_step": last_step,
+                "logcat_path": logcat_path,
+            },
         )
 
     except Exception as exc:
         elapsed = round(time.monotonic() - t_start, 1)
-        # Capture failure evidence
+        # Capture comprehensive failure evidence
         try:
             d.screenshot("inject_failed_screen")
             d.logcat("inject_failed_logcat")
+            # Also capture current UI state if possible
+            try:
+                from selenium.webdriver.common.by import By
+                ui_elements = d.drv.find_elements(By.TAG_NAME, "android.view.View")
+                ui_text = ";".join([el.text for el in ui_elements[:20] if el.text])
+                d.reporter.log_event(
+                    "inject_failure_ui_state",
+                    {"visible_text": ui_text, "element_count": len(ui_elements)},
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 
