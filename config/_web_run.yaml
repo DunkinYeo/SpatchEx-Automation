@@ -1,0 +1,58 @@
+android:
+  app_activity: com.wellysis.spatchcardio.ex.MainActivity
+  app_package: com.wellysis.spatchcardio.ex
+  appium_server_url: http://127.0.0.1:4723
+  device_name: 55ETQWBXYE1RA1
+  new_command_timeout: 3600
+  no_reset: true
+  udid: 55ETQWBXYE1RA1
+platform: android
+run:
+  duration_hours: 24
+  name: uat_run
+  start_immediately: true
+  symptom_interval_hours: 4.0
+selectors:
+  android:
+    confirm_text:
+    - 확인
+    - Confirm
+    - OK
+    consent_agree_text:
+    - 동의
+    - Agree
+    duration_24h_text:
+    - 24 시간
+    - 24 Hours
+    duration_48h_text:
+    - 48 시간
+    - 48 Hours
+    duration_72h_text:
+    - 72 시간
+    - 72 Hours
+    duration_sheet_title:
+    - 검사 기간을 선택해주세요
+    - Select a test period
+    offline_mode_text:
+    - 오프라인
+    - Offline
+    start_now_text: Start Now
+    symptom_add_text:
+    - 증상 추가
+    - Add Symptom
+    symptom_picker_title:
+    - 증상을 선택해주세요.
+    - Check your symptoms
+    use_spatch_text:
+    - S-Patch 사용하기
+    - Use S-Patch
+slack:
+  enabled: false
+  mention: ''
+  webhook_url: ''
+symptom_catalog:
+- Chest Pain
+- Palpitations
+- Dizziness
+- Short Breath
+symptom_plan: []

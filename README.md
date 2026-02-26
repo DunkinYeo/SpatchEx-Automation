@@ -1,70 +1,77 @@
-# spatch-longrun-automation
+# S-Patch EX 장기 실행 자동화 테스트
 
-Long-running app test orchestrator for S-PATCH EX style apps (24/48/72h) with **scheduled symptom injection**.
-Android first (Appium + UiAutomator2). iOS stub included for later.
-
-## What this does (MVP)
-- Starts a measurement (handles online/offline consent path)
-- While test is running: injects symptoms every N hours (or by a plan)
-- Collects artifacts on every injection (screenshot + logcat)
-- Watchdog: retries, brings app to foreground, and attempts recovery
-- Outputs: `output/<run_id>/...` with JSONL event log + HTML summary
+24/48/72시간 ECG 측정 중 **증상을 자동으로 주입**해주는 테스트 자동화 툴입니다.
 
 ---
 
-## 사용 방법 (Web UI — 비개발자용)
+## 🚀 시작하기 (3단계)
 
-### 1. 최초 1회 설치 (아무것도 없는 환경)
+### 1단계 — 다운로드
 
-| OS | 방법 |
-|----|------|
-| Mac | `install.sh` 더블클릭 (Python·Node·adb·Appium 자동 설치) |
-| Windows | `install.bat` 더블클릭 (동일) |
+아래 링크를 클릭해 ZIP 파일을 다운로드하고 압축을 해제하세요.
 
-> 설치 스크립트가 Python, Node.js, ADB, Appium, UiAutomator2 드라이버를 모두 자동으로 설치합니다.
-> 설치 시간: 약 5~15분 (인터넷 속도에 따라 다름)
+**[⬇ 최신 버전 다운로드 (ZIP)](https://github.com/DunkinYeo/SpatchEx-Automation/archive/refs/heads/main.zip)**
 
-이미 Python·Appium이 설치된 환경이라면 수동으로:
-```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate.bat
-pip install -r requirements.txt
-appium driver install uiautomator2
-```
+### 2단계 — 설치 (최초 1회만)
 
-### 2. 실행
-| OS | 방법 |
-|----|------|
-| Mac | `start.sh` 더블클릭 (또는 `./start.sh`) |
-| Windows | `start.bat` 더블클릭 |
+압축 해제된 폴더에서:
 
-브라우저가 자동으로 열리면 → 설정 후 **▶ 테스트 시작** 클릭
+| OS | 실행 파일 | 방법 |
+|----|-----------|------|
+| **Mac** | `install.command` | 더블클릭 → 팝업에서 "열기" 클릭 |
+| **Windows** | `install.bat` | 더블클릭 |
 
-### 3. 디바이스 연결 방법
+> Python, Node.js, ADB, Appium이 자동으로 설치됩니다. (5~15분 소요)
 
-#### USB 케이블 (기본)
-1. 개발자 옵션 활성화 (설정 → 빌드 번호 7번 탭)
-2. USB 디버깅 ON
-3. USB 케이블 연결 후 팝업에서 "허용"
-4. 확인: `adb devices` → 시리얼 번호 표시되면 OK
+### 3단계 — 테스트 실행
 
-#### WiFi 무선 연결 (Android 11+, 케이블 불필요)
-1. 개발자 옵션 → **무선 디버깅** ON
-2. **페어링 코드로 기기 페어링** 탭
-3. 화면에 표시된 IP:포트와 코드 확인 후 아래 명령 실행:
+| OS | 실행 파일 | 결과 |
+|----|-----------|------|
+| **Mac** | `start.command` | 더블클릭 → 브라우저 자동 오픈 |
+| **Windows** | `start.bat` | 더블클릭 → 브라우저 자동 오픈 |
+
+브라우저에서 설정 후 **▶ 테스트 시작** 클릭!
+
+---
+
+## 📱 폰 연결 방법
+
+### USB 케이블 연결 (가장 쉬운 방법)
+1. 설정 → 빌드 번호를 **7번** 연속 탭 → "개발자 옵션 활성화" 메시지 확인
+2. 설정 → 개발자 옵션 → **USB 디버깅 ON**
+3. USB 케이블로 PC에 연결
+4. 폰 화면에 팝업 뜨면 **"허용"** 탭
+
+### WiFi 무선 연결 (Android 11+, 케이블 불필요)
+1. 설정 → 개발자 옵션 → **무선 디버깅 ON**
+2. **"페어링 코드로 기기 페어링"** 탭
+3. 터미널(Mac) 또는 명령 프롬프트(Windows)에서:
    ```bash
-   adb pair <IP>:<페어링포트>     # 예: adb pair 192.168.1.5:39517
-   # 코드 입력 후 "Successfully paired" 메시지 확인
-   adb connect <IP>:<디버깅포트>  # 예: adb connect 192.168.1.5:42135
+   adb pair <화면의 IP>:<페어링 포트>   # 코드 입력
+   adb connect <화면의 IP>:<디버깅 포트>
    ```
-4. `adb devices`로 연결 확인 → Web UI에서 자동 감지됨
+4. Web UI가 자동으로 기기를 감지합니다
 
-> ⚠️ PC와 폰이 **동일한 WiFi**에 연결되어 있어야 합니다.
+> ⚠️ PC와 폰이 **같은 WiFi**에 연결되어 있어야 합니다.
 
 ---
 
-## 개발자용 CLI 실행
+## ❓ 자주 묻는 질문
 
+**Q. `install.command`를 더블클릭하면 텍스트 파일로 열려요**
+→ 파일에서 우클릭 → "다른 앱으로 열기" → "터미널" 선택
+
+**Q. "개발자를 확인할 수 없음" 팝업이 떠요 (Mac)**
+→ 시스템 설정 → 개인 정보 보호 및 보안 → 하단에서 "무관하게 허용" 클릭
+
+**Q. 폰이 웹 UI에서 안 보여요**
+→ USB 케이블 재연결 후 폰 화면에서 "허용" 확인
+
+---
+
+## 개발자용 정보
+
+### CLI 직접 실행
 ```bash
 # Appium 서버 먼저 시작 (별도 터미널)
 appium --relaxed-security
@@ -73,30 +80,23 @@ appium --relaxed-security
 python main.py --config config/spatch-ex.yaml
 ```
 
-설정 파일 생성:
+### 설정 파일 구조
 ```bash
 cp config/run.example.yaml config/my-app.yaml
 # app_package, app_activity, udid, selectors 수정
 ```
 
----
-
-## Notes on selectors
-This project prefers **text/accessibility-id** selectors (no resource-id needed).
-Selectors support `str | list[str]` — list means "try each in order":
+### 셀렉터 형식
 ```yaml
-symptom_add_text: ["증상 추가", "Add Symptom"]  # Korean first, English fallback
+# 한/영 모두 지원 — 순서대로 시도
+symptom_add_text: ["증상 추가", "Add Symptom"]
 ```
 
-## Output structure
+### 결과 파일 위치
 ```
 output/<YYYYMMDD_HHMMSS>/
-  events.jsonl          # machine-readable event log
-  report.html           # human-readable HTML summary
-  inject_before_*.png   # screenshots
-  inject_logcat_*.txt   # adb logcat snapshots
+  events.jsonl      # 이벤트 로그
+  report.html       # HTML 요약 리포트
+  *.png             # 스크린샷
+  *_logcat.txt      # ADB 로그
 ```
-
----
-
-If you want, we can extend to multi-node (miniPC/RPi) orchestration and Slack notifications.
