@@ -86,22 +86,45 @@ def inject_symptom_event(
             _add_activities(d, activities)
             last_step = "activities_added"
 
-        # ── 9. Screenshot AFTER + logcat ─────────────────────────────
+        # ── 9. Wait for success confirmation ─────────────────────────────
+        # Checks (in order): configured success text → main screen indicator.
+        # Only fails if BOTH are absent within timeout.
+        signal = d.wait_for_symptom_success(timeout=10)
+        d.screenshot(f"symptom_success_{signal}")
+        last_step = f"success_{signal}"
+
+        # ── 10. Screenshot AFTER + logcat ────────────────────────────
         d.screenshot("inject_after")
-        d.logcat("inject_logcat")
+        logcat_path = d.logcat("inject_logcat")
 
         elapsed = round(time.monotonic() - t_start, 1)
         d.reporter.log_event(
             "inject_symptom_done",
-            {"status": "ok", "elapsed_sec": elapsed, "last_step": last_step},
+            {
+                "status": "ok",
+                "elapsed_sec": elapsed,
+                "last_step": last_step,
+                "logcat_path": logcat_path,
+            },
         )
 
     except Exception as exc:
         elapsed = round(time.monotonic() - t_start, 1)
-        # Capture failure evidence
+        # Capture comprehensive failure evidence
         try:
             d.screenshot("inject_failed_screen")
             d.logcat("inject_failed_logcat")
+            # Also capture current UI state if possible
+            try:
+                from selenium.webdriver.common.by import By
+                ui_elements = d.drv.find_elements(By.TAG_NAME, "android.view.View")
+                ui_text = ";".join([el.text for el in ui_elements[:20] if el.text])
+                d.reporter.log_event(
+                    "inject_failure_ui_state",
+                    {"visible_text": ui_text, "element_count": len(ui_elements)},
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 

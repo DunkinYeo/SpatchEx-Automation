@@ -7,7 +7,12 @@ Drift prevention strategy:
   as a new `date` trigger (start_time + N * interval). This avoids APScheduler
   interval drift caused by execution time or system sleep.
 
-Session health is checked before every job via driver.ensure_session().
+Pre-job health checks (in order):
+  1. Appium session alive     — driver.ensure_session()
+  2. App brought to foreground — driver.bring_to_foreground()
+  3. UI health assert          — driver.assert_ui_health()
+     (checks that the measurement screen is unobstructed)
+Any check failure triggers 3-step escalating recovery before the job runs.
 """
 
 import datetime
@@ -54,6 +59,17 @@ class LongRunScheduler:
     # ------------------------------------------------------------------
 
     def _run_plan(self, job_callable, driver, start, end):
+        # Log sleep prevention warning at the start
+        self.reporter.log_event(
+            "scheduler_started",
+            {
+                "duration_hours": self.duration_hours,
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+                "warning": "PC must remain powered on and awake; disable sleep/suspend/hibernation",
+            },
+        )
+
         sched = BlockingScheduler()
 
         for item in self.plan:
@@ -114,6 +130,18 @@ class LongRunScheduler:
 
             sched.add_job(_job, "date", run_date=next_run)
 
+        # Log sleep prevention warning at the start
+        self.reporter.log_event(
+            "scheduler_started",
+            {
+                "duration_hours": self.duration_hours,
+                "interval_hours": self.interval_hours,
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+                "warning": "PC must remain powered on and awake; disable sleep/suspend/hibernation",
+            },
+        )
+
         # Optionally fire the first job immediately (a few seconds in).
         if self.start_immediately:
             first_run = datetime.datetime.now() + datetime.timedelta(seconds=5)
@@ -147,11 +175,50 @@ class LongRunScheduler:
 
 
 def _run_with_health_check(job_callable, driver, at_hour, payload, reporter):
-    """Ensure session is alive before running the job."""
+    """
+    Run three pre-job health checks before executing the job:
+      1. Appium session alive
+      2. Bring app to foreground
+      3. UI health assert (measurement screen unobstructed)
+    Any failure triggers 3-step escalating recovery.
+    """
     if driver is not None:
+        # 1. Session check
         try:
             driver.ensure_session()
         except Exception as e:
             reporter.log_event("session_check_failed", {"error": str(e)})
+            _attempt_recovery(driver, reporter)
+
+        # 2. Bring app to foreground (handles background/minimised state)
+        driver.bring_to_foreground()
+        driver.wait_idle(1.0)
+
+        # 3. UI health check — assert measurement screen is unobstructed.
+        #    This catches: popups, loading spinners, wrong screen, etc.
+        #    Session exceptions are invisible to ensure_session(), so this
+        #    is the only guard against a stuck-but-alive UI.
+        try:
+            driver.assert_ui_health()
+        except Exception as e:
+            reporter.log_event("ui_health_check_failed", {"error": str(e)})
+            _attempt_recovery(driver, reporter)
 
     job_callable(at_hour=at_hour, payload=payload)
+
+
+def _attempt_recovery(driver, reporter):
+    """Try 3-step escalating recovery. Logs each step."""
+    for step in [1, 2, 3]:
+        try:
+            success = driver.recover_session(step=step)
+            if success:
+                driver.ensure_session()
+                reporter.log_event("session_recovered", {"recovery_step": step})
+                return
+        except Exception as e:
+            reporter.log_event(
+                "recovery_step_error",
+                {"step": step, "error": str(e)},
+            )
+    reporter.log_event("session_recovery_failed", {"tried_steps": 3})

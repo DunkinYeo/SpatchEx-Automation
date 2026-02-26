@@ -225,5 +225,100 @@ class AndroidDriver:
                 except Exception:
                     pass
 
+    def recover_session(self, step: int = 1) -> bool:
+        """
+        Attempt to recover a stuck/frozen session in 3 escalating steps.
+        Returns True if recovery succeeded, False otherwise.
+
+        Args:
+            step: 1 (back key), 2 (start_activity), or 3 (kill/relaunch)
+        """
+        pkg = self.cfg.get("app_package")
+        act = self.cfg.get("app_activity")
+
+        try:
+            if step == 1:
+                # Step 1: Send back key and wait for app to settle
+                self.reporter.log_event("recovery_step_1", {"action": "press_back"})
+                self.drv.press_keycode(4)  # KEYCODE_BACK
+                self.wait_idle(1.0)
+                return True
+
+            elif step == 2:
+                # Step 2: Force start the activity (may recreate)
+                self.reporter.log_event("recovery_step_2", {"action": "start_activity"})
+                if pkg and act:
+                    self.drv.start_activity(pkg, act)
+                    self.wait_idle(1.5)
+                    return True
+
+            elif step == 3:
+                # Step 3: Kill the app and restart it
+                self.reporter.log_event("recovery_step_3", {"action": "kill_and_relaunch"})
+                if pkg:
+                    try:
+                        self.drv.terminate_app(pkg)
+                    except Exception:
+                        pass
+                    self.wait_idle(1.0)
+                    try:
+                        self.drv.activate_app(pkg)
+                    except Exception:
+                        if act:
+                            self.drv.start_activity(pkg, act)
+                    self.wait_idle(2.0)
+                    return True
+
+            return False
+        except Exception as e:
+            self.reporter.log_event(
+                "recovery_failed",
+                {"step": step, "error": str(e)},
+            )
+            return False
+
+    def wait_for_symptom_success(self, timeout: int = 10) -> str:
+        """
+        Wait for one of two success signals after symptom submission:
+          1. symptom_success_signal_text  — configured toast/confirmation text
+          2. symptom_add_text             — back on main measurement screen
+
+        Returns the name of the signal that was detected first.
+        Raises RuntimeError if neither appears within timeout.
+        """
+        success_signal = self.sel.get("symptom_success_signal_text")
+        main_indicator = self.sel.get("symptom_add_text", "Add Symptom")
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if success_signal and self.is_visible_text(success_signal):
+                return "success_signal"
+            if self.is_visible_text(main_indicator):
+                return "main_screen"
+            time.sleep(0.5)
+
+        raise RuntimeError(
+            f"Symptom success not confirmed within {timeout}s: "
+            f"neither '{success_signal}' nor '{main_indicator}' appeared"
+        )
+
+    def assert_ui_health(self):
+        """
+        Assert that the measurement running screen is visible.
+        Uses symptom_add_text selector as the indicator (it's only visible
+        when measurement is active and the screen is unobstructed).
+        Raises RuntimeError if the indicator is not found — callers should
+        treat this as a recoverable failure.
+        """
+        indicator = self.sel.get("symptom_add_text", "Add Symptom")
+        self.reporter.log_event("ui_health_check", {"indicator": indicator})
+        if not self.is_visible_text(indicator):
+            try:
+                self.screenshot("ui_health_failed")
+            except Exception:
+                pass
+            raise RuntimeError(f"UI health check failed: '{indicator}' not visible on screen")
+        self.reporter.log_event("ui_health_ok", {"indicator": indicator})
+
     def wait_idle(self, seconds: float = 1.0):
         time.sleep(seconds)
