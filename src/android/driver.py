@@ -225,5 +225,57 @@ class AndroidDriver:
                 except Exception:
                     pass
 
+    def recover_session(self, step: int = 1) -> bool:
+        """
+        Attempt to recover a stuck/frozen session in 3 escalating steps.
+        Returns True if recovery succeeded, False otherwise.
+
+        Args:
+            step: 1 (back key), 2 (start_activity), or 3 (kill/relaunch)
+        """
+        pkg = self.cfg.get("app_package")
+        act = self.cfg.get("app_activity")
+
+        try:
+            if step == 1:
+                # Step 1: Send back key and wait for app to settle
+                self.reporter.log_event("recovery_step_1", {"action": "press_back"})
+                self.drv.press_keycode(4)  # KEYCODE_BACK
+                self.wait_idle(1.0)
+                return True
+
+            elif step == 2:
+                # Step 2: Force start the activity (may recreate)
+                self.reporter.log_event("recovery_step_2", {"action": "start_activity"})
+                if pkg and act:
+                    self.drv.start_activity(pkg, act)
+                    self.wait_idle(1.5)
+                    return True
+
+            elif step == 3:
+                # Step 3: Kill the app and restart it
+                self.reporter.log_event("recovery_step_3", {"action": "kill_and_relaunch"})
+                if pkg:
+                    try:
+                        self.drv.terminate_app(pkg)
+                    except Exception:
+                        pass
+                    self.wait_idle(1.0)
+                    try:
+                        self.drv.activate_app(pkg)
+                    except Exception:
+                        if act:
+                            self.drv.start_activity(pkg, act)
+                    self.wait_idle(2.0)
+                    return True
+
+            return False
+        except Exception as e:
+            self.reporter.log_event(
+                "recovery_failed",
+                {"step": step, "error": str(e)},
+            )
+            return False
+
     def wait_idle(self, seconds: float = 1.0):
         time.sleep(seconds)

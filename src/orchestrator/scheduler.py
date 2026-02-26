@@ -54,6 +54,17 @@ class LongRunScheduler:
     # ------------------------------------------------------------------
 
     def _run_plan(self, job_callable, driver, start, end):
+        # Log sleep prevention warning at the start
+        self.reporter.log_event(
+            "scheduler_started",
+            {
+                "duration_hours": self.duration_hours,
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+                "warning": "PC must remain powered on and awake; disable sleep/suspend/hibernation",
+            },
+        )
+
         sched = BlockingScheduler()
 
         for item in self.plan:
@@ -114,6 +125,18 @@ class LongRunScheduler:
 
             sched.add_job(_job, "date", run_date=next_run)
 
+        # Log sleep prevention warning at the start
+        self.reporter.log_event(
+            "scheduler_started",
+            {
+                "duration_hours": self.duration_hours,
+                "interval_hours": self.interval_hours,
+                "start_time": start.isoformat(),
+                "end_time": end.isoformat(),
+                "warning": "PC must remain powered on and awake; disable sleep/suspend/hibernation",
+            },
+        )
+
         # Optionally fire the first job immediately (a few seconds in).
         if self.start_immediately:
             first_run = datetime.datetime.now() + datetime.timedelta(seconds=5)
@@ -147,11 +170,31 @@ class LongRunScheduler:
 
 
 def _run_with_health_check(job_callable, driver, at_hour, payload, reporter):
-    """Ensure session is alive before running the job."""
+    """
+    Ensure session is alive before running the job.
+    If session is dead, attempt 3-step recovery before giving up.
+    """
     if driver is not None:
         try:
             driver.ensure_session()
         except Exception as e:
             reporter.log_event("session_check_failed", {"error": str(e)})
+            # Attempt 3-step recovery
+            for recovery_step in [1, 2, 3]:
+                try:
+                    success = driver.recover_session(step=recovery_step)
+                    if success:
+                        # Verify recovery
+                        driver.ensure_session()
+                        reporter.log_event("session_recovered", {"recovery_step": recovery_step})
+                        break
+                except Exception as recovery_error:
+                    reporter.log_event(
+                        "recovery_step_error",
+                        {"step": recovery_step, "error": str(recovery_error)},
+                    )
+            else:
+                # All recovery steps failed
+                reporter.log_event("session_recovery_failed", {"tried_steps": 3})
 
     job_callable(at_hour=at_hour, payload=payload)
