@@ -173,7 +173,37 @@ class AndroidDriver:
         return self.artifacts.screenshot(self.drv, name)
 
     def logcat(self, name: str = "logcat") -> str:
-        return self.artifacts.collect_android_logcat(name)
+        """
+        Capture device logcat via ArtifactManager and emit reporter events.
+
+        Returns the path to the saved log file on success, or None on failure.
+        """
+        seconds = 2
+        try:
+            self.reporter.log_event("artifact_logcat_start", {"name": name, "seconds": seconds})
+        except Exception:
+            # best-effort: don't fail if reporter logging errors
+            pass
+
+        try:
+            path = self.artifacts.collect_android_logcat(name, seconds=seconds)
+            if path:
+                try:
+                    self.reporter.log_event("artifact_logcat_done", {"name": name, "path": path})
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.reporter.log_event("artifact_logcat_failed", {"name": name, "error": "collect_android_logcat returned None"})
+                except Exception:
+                    pass
+            return path
+        except Exception as e:
+            try:
+                self.reporter.log_event("artifact_logcat_failed", {"name": name, "error": str(e)})
+            except Exception:
+                pass
+            return None
 
     # ------------------------------------------------------------------
     # State helpers
