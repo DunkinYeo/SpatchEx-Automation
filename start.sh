@@ -24,7 +24,6 @@ echo ""
 echo "  Press Ctrl+C in this window to stop."
 echo ""
 
-# Open browser after a short delay so the server has time to start
-(sleep 2 && open "http://127.0.0.1:5001") &
+open "http://127.0.0.1:5001"
 
 python web/app.py

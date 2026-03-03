@@ -91,10 +91,10 @@ SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
 REM Verify npm is available before trying to install
 npm --version >nul 2>&1
-IF ERRORLEVEL 1 (
-  echo   ERROR: npm not found. Please close and re-run install.bat
-  GOTO :done
-)
+IF NOT ERRORLEVEL 1 GOTO :npm_ok
+echo   ERROR: npm not found. Please close and re-run install.bat
+GOTO :done
+:npm_ok
 
 REM Run Appium via npx (downloads ~50 MB on first run, uses cache afterward)
 echo   Verifying Appium via npx (first run downloads ~50 MB)...

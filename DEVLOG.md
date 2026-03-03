@@ -1,5 +1,20 @@
 # Development Log
 
+## [2026-03-03] Installer reliability + auto browser open
+
+### Changes
+- **start.bat**: Replace delayed-cmd browser open with direct `start "" "http://127.0.0.1:5001"`
+- **start.sh**: Replace background subshell `(sleep 2 && open ...) &` with direct `open "http://127.0.0.1:5001"`
+- **install.sh**: Switch Appium from `npm install -g appium` to `npx -y appium@3`; same for driver list/install — avoids global PATH issues
+- **install.bat**: Convert remaining parenthesized `IF ERRORLEVEL` block (npm check) to `IF NOT ERRORLEVEL 1 GOTO` style — consistent with all other steps, prevents silent exit edge case
+
+### Reasoning
+1. **Browser open**: Delay-based open is fragile; Flask starts fast enough that direct `start`/`open` is reliable and simpler
+2. **npx vs global appium**: Global install requires admin rights and PATH refresh after winget installs Node; npx uses a local cache (`~/.npm/_npx`) with no PATH side effects
+3. **install.bat GOTO style**: CMD parenthesized blocks with `GOTO` inside can behave unexpectedly on some Windows versions; pure label-based flow is unambiguous
+
+---
+
 ## [2026-02-26] Logcat & Artifact Logging Enhancement + Symptom Success Detection
 
 ### Changes
