@@ -84,60 +84,61 @@ echo   OK  ADB ready
 
 REM ── 4. Appium ────────────────────────────────────────────────────────────────
 echo.
-echo [4/5] Installing Appium...
+echo [4/5] Checking Appium...
 
-REM Inject common Node.js paths so npm is always found
+REM Ensure Node.js and npm global bin are always in PATH
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
-REM Verify npm is available
+REM Verify npm is available before trying to install
 npm --version >nul 2>&1
 IF ERRORLEVEL 1 (
-  echo.
-  echo   ERROR: npm not found even after Node.js install.
-  echo   Please close this window and re-run install.bat
+  echo   ERROR: npm not found. Please close and re-run install.bat
   GOTO :done
 )
 
-appium --version >nul 2>&1
+REM Use appium -v (not --version) — Appium 3.x only supports -v
+appium -v >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :appium_ok
 
-echo   Installing Appium via npm. Please wait (3-5 min)...
-npm install -g appium
-IF NOT ERRORLEVEL 1 GOTO :appium_ok
+echo   Appium not found. Installing via npm (3-5 min)...
+npm i --location=global appium
+SET APPIUM_ERR=%ERRORLEVEL%
+IF %APPIUM_ERR%==0 GOTO :appium_ok
 echo.
-echo   ERROR: npm install -g appium failed.
-echo   Make sure Node.js is properly installed and try again.
+echo   ERROR: npm i --location=global appium failed. (exit code %APPIUM_ERR%)
+echo   Please run install.bat as Administrator and retry.
+SET SETUP_FAILED=1
 GOTO :done
 
 :appium_ok
-echo   Verifying Appium installation...
-appium -v
-echo   Installed drivers:
-appium driver list
+FOR /F "tokens=*" %%i IN ('appium -v 2^>nul') DO echo   OK  Appium %%i
 
-REM Check UiAutomator2 via temp file (pipe+ERRORLEVEL unreliable on Windows)
+REM ── 5. UiAutomator2 driver ───────────────────────────────────────────────────
 echo.
-echo   Checking UiAutomator2 driver...
+echo [5/5] Checking UiAutomator2 driver...
 SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
 appium driver list --installed > "%DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
-echo   UiAutomator2 not installed. Installing now (this may take a few minutes)...
+echo   UiAutomator2 not installed. Installing now...
 appium driver install uiautomator2
-IF NOT ERRORLEVEL 1 GOTO :uia2_ok
+SET UIA2_ERR=%ERRORLEVEL%
+IF %UIA2_ERR%==0 GOTO :uia2_ok
 echo.
-echo   ERROR: Failed to install UiAutomator2 driver.
-echo   Try running manually: appium driver install uiautomator2
+echo   ERROR: Failed to install UiAutomator2 driver. (exit code %UIA2_ERR%)
+echo   Please run install.bat as Administrator and retry.
 SET SETUP_FAILED=1
 GOTO :done
 
 :uia2_ok
-echo   OK  UiAutomator2 ready
+echo   OK  UiAutomator2 installed
+echo   Installed drivers:
+appium driver list
 
-REM ── 5. Python virtual environment ────────────────────────────────────────────
+REM ── Python virtual environment (post-setup) ──────────────────────────────────
 echo.
-echo [5/5] Setting up Python packages...
+echo   Setting up Python packages...
 IF EXIST ".venv" GOTO :venv_ok
 python -m venv .venv
 IF NOT ERRORLEVEL 1 GOTO :venv_ok
@@ -155,7 +156,6 @@ GOTO :done
 
 :pip_ok
 echo   OK  Packages installed
-echo   [5/5] Done
 
 REM ── Done ────────────────────────────────────────────────────────────────────
 echo.
