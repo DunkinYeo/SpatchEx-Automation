@@ -85,10 +85,23 @@ echo   OK  ADB ready
 REM ── 4. Appium ────────────────────────────────────────────────────────────────
 echo.
 echo [4/5] Installing Appium...
+
+REM Inject common Node.js paths so npm is always found
+SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
+
+REM Verify npm is available
+npm --version >nul 2>&1
+IF ERRORLEVEL 1 (
+  echo.
+  echo   ERROR: npm not found even after Node.js install.
+  echo   Please close this window and re-run install.bat
+  GOTO :done
+)
+
 appium --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :appium_ok
 
-echo   Installing Appium via npm. Please wait...
+echo   Installing Appium via npm. Please wait (3-5 min)...
 npm install -g appium
 IF NOT ERRORLEVEL 1 GOTO :appium_ok
 echo.
@@ -97,7 +110,8 @@ echo   Make sure Node.js is properly installed and try again.
 GOTO :done
 
 :appium_ok
-echo   OK  Appium ready
+REM After npm install, appium lands in %APPDATA%\npm — already in PATH above
+FOR /F "tokens=*" %%i IN ('appium --version 2^>nul') DO echo   OK  Appium %%i
 
 echo   Checking UiAutomator2 driver...
 appium driver list --installed 2>nul | findstr /i "uiautomator2" >nul
