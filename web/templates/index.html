@@ -321,21 +321,32 @@
 <script>
 // ── Event display config ──────────────────────────────────────────────────────
 const EVENT_INFO = {
-  run_start:                   { text: '테스트 시작',           color: 'blue'   },
-  appium_connect:              { text: 'Appium 연결됨',          color: 'blue'   },
-  ensure_measurement_started:  { text: '측정 상태 확인 중…',     color: 'gray'   },
-  measurement_already_running: { text: '측정 이미 진행 중 ✓',   color: 'green'  },
-  measurement_confirmed_running:{ text: '측정 진행 중 확인됨 ✓',color: 'green'  },
-  measurement_started:         { text: '측정 시작됨 ✓',         color: 'green'  },
-  tapping_start_now:           { text: 'Start Now 탭',           color: 'gray'   },
-  offline_mode_detected:       { text: '오프라인 모드 감지됨',   color: 'gray'   },
-  inject_symptom_start:        { text: null,                     color: 'purple' },
-  inject_symptom_done:         { text: null,                     color: 'green'  },
-  inject_symptom_failed:       { text: '증상 주입 실패 ✗',      color: 'red'    },
-  schedule_add:                { text: null,                     color: 'gray'   },
-  session_check_failed:        { text: '세션 오류 ⚠️',           color: 'red'    },
-  run_complete:                { text: '테스트 완료 🎉',         color: 'green'  },
-  run_failed:                  { text: null,                     color: 'red'    },
+  run_start:                   { text: '테스트 시작',              color: 'blue'   },
+  appium_connect:              { text: 'Appium 연결됨',             color: 'blue'   },
+  ensure_measurement_started:  { text: '측정 상태 확인 중…',        color: 'gray'   },
+  measurement_already_running: { text: '측정 이미 진행 중 ✓',      color: 'green'  },
+  measurement_confirmed_running:{ text: '측정 진행 중 확인됨 ✓',   color: 'green'  },
+  measurement_started:         { text: '측정 시작됨 ✓',            color: 'green'  },
+  tapping_start_now:           { text: 'Start Now 탭',              color: 'gray'   },
+  offline_mode_detected:       { text: '오프라인 모드 감지됨',      color: 'gray'   },
+  scheduler_started:           { text: '스케줄러 시작됨',           color: 'blue'   },
+  ui_health_check:             { text: '화면 상태 확인 중…',        color: 'gray'   },
+  ui_health_ok:                { text: '화면 상태 정상 ✓',          color: 'green'  },
+  ui_health_check_failed:      { text: '화면 이상 감지 — 복구 시도', color: 'red'   },
+  session_check_failed:        { text: '세션 오류 — 복구 시도 ⚠️',  color: 'red'    },
+  recovery_step_1:             { text: '복구 1단계: 뒤로가기',       color: 'gray'   },
+  recovery_step_2:             { text: '복구 2단계: 앱 재시작',      color: 'gray'   },
+  recovery_step_3:             { text: '복구 3단계: 앱 강제 종료 후 재실행', color: 'gray' },
+  session_recovered:           { text: null,                        color: 'green'  },
+  session_recovery_failed:     { text: '복구 실패 ✗',              color: 'red'    },
+  inject_symptom_start:        { text: null,                        color: 'purple' },
+  inject_symptom_done:         { text: null,                        color: 'green'  },
+  inject_symptom_failed:       { text: '증상 주입 실패 ✗',         color: 'red'    },
+  schedule_add:                { text: null,                        color: 'gray'   },
+  artifact_logcat_start:       { text: null,                        color: 'gray'   },
+  artifact_logcat_done:        { text: null,                        color: 'gray'   },
+  run_complete:                { text: '테스트 완료 🎉',            color: 'green'  },
+  run_failed:                  { text: null,                        color: 'red'    },
 };
 
 function fmtEvent(ev) {
@@ -352,6 +363,15 @@ function fmtEvent(ev) {
     const d = ev.data || {};
     const t = d.run_at ? new Date(d.run_at).toLocaleTimeString('ko-KR') : '-';
     text = `다음 주입 예약 → ${t}`;
+  } else if (ev.event === 'session_recovered') {
+    const step = ev.data?.recovery_step ?? '?';
+    text = `복구 성공 ✓  (${step}단계)`;
+  } else if (ev.event === 'artifact_logcat_start') {
+    return null;  // 로그 항목 숨김
+  } else if (ev.event === 'artifact_logcat_done') {
+    return null;  // 로그 항목 숨김
+  } else if (ev.event === 'ui_health_check') {
+    return null;  // 너무 자주 나와서 숨김
   } else if (ev.event === 'run_failed') {
     text = `테스트 실패 ✗  — ${ev.data?.error || ''}`;
   }
@@ -533,7 +553,9 @@ function renderLog(events, reset = false) {
 
     for (let i = seenEvents; i < events.length; i++) {
       const ev = events[i];
-      const { text, color } = fmtEvent(ev);
+      const fmt = fmtEvent(ev);
+      if (!fmt) continue;  // null → skip (hidden events)
+      const { text, color } = fmt;
       const time = ev.ts ? ev.ts.split('T')[1].slice(0, 8) : '';
 
       const div = document.createElement('div');

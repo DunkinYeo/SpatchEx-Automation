@@ -1,0 +1,90 @@
+name: Install Test (Fresh Environment)
+
+on:
+  push:
+    branches: [main, feature/**]
+    paths:
+      - 'install.sh'
+      - 'install.bat'
+      - 'bootstrap.sh'
+      - 'bootstrap.ps1'
+      - '실행.command'
+      - '실행.bat'
+      - 'requirements.txt'
+      - '.github/workflows/install-test.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  # ── macOS — install.sh + start 직전까지 ──────────────────────────────────
+  test-mac:
+    name: "Mac — install.sh"
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run install.sh
+        run: bash install.sh
+
+      - name: Verify — Python venv exists
+        run: test -d .venv && echo "✓ .venv created"
+
+      - name: Verify — Python packages importable
+        run: |
+          source .venv/bin/activate
+          python -c "import appium, yaml, flask, apscheduler; print('✓ all packages OK')"
+
+      - name: Verify — Appium version
+        run: appium --version
+
+      - name: Verify — UiAutomator2 driver installed
+        run: appium driver list --installed 2>&1 | grep uiautomator2
+
+      - name: Verify — web app importable
+        run: |
+          source .venv/bin/activate
+          python -c "import sys; sys.path.insert(0,''); from web.app import app; print('✓ web app OK')"
+
+  # ── Windows — install.bat (Python·Node·Appium 검증) ──────────────────────
+  test-windows:
+    name: "Windows — install.bat"
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python (pre-installed on runner, simulates "Python already present")
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js (pre-installed on runner)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Appium + UiAutomator2
+        shell: cmd
+        run: |
+          npm install -g appium
+          appium driver install uiautomator2
+
+      - name: Install Python venv + packages
+        shell: cmd
+        run: |
+          python -m venv .venv
+          .venv\Scripts\pip install -r requirements.txt -q
+
+      - name: Verify — Python packages importable
+        shell: cmd
+        run: |
+          .venv\Scripts\python -c "import appium, yaml, flask, apscheduler; print('OK all packages OK')"
+
+      - name: Verify — Appium version
+        shell: cmd
+        run: appium --version
+
+      - name: Verify — web app importable
+        shell: cmd
+        run: |
+          .venv\Scripts\python -c "import sys; sys.path.insert(0,''); from web.app import app; print('OK web app OK')"

@@ -204,7 +204,13 @@ def api_stop():
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import socket
     import webbrowser
-    threading.Timer(1.2, lambda: webbrowser.open("http://127.0.0.1:5001")).start()
-    print("\n  ✓ SpatchEx 테스트 UI → http://127.0.0.1:5001\n")
-    app.run(host="127.0.0.1", port=5001, debug=False, threaded=True)
+    try:
+        local_ip = socket.gethostbyname(socket.gethostname())
+    except Exception:
+        local_ip = "127.0.0.1"
+    threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:5001")).start()
+    print(f"\n  ✓ SpatchEx 테스트 UI (로컬)  → http://127.0.0.1:5001")
+    print(f"  ✓ 같은 네트워크에서 공유    → http://{local_ip}:5001\n")
+    app.run(host="0.0.0.0", port=5001, debug=False, threaded=True)
