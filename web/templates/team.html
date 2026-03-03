@@ -212,6 +212,17 @@ function countInjects(events) {
   return events.filter(e => e.event === 'inject_symptom_done').length;
 }
 
+function fmtDuration(h) {
+  if (h == null) return '-';
+  return `${h}시간`;
+}
+
+function fmtInterval(h) {
+  if (h == null) return '-';
+  if (h < 1) return `${Math.round(h * 60)}분마다`;
+  return Number.isInteger(h) ? `${h}시간마다` : `${h}시간마다`;
+}
+
 function renderCard(name, session) {
   const events = session.events || [];
   const recent = [...events].reverse().slice(0, 15);
@@ -238,6 +249,10 @@ function renderCard(name, session) {
         ${statusBadge(session.status)}
       </div>
       <div class="card-body">
+        <div class="stat-row">
+          <span>측정 시간: <strong>${fmtDuration(session.duration_hours)}</strong></span>
+          <span>주입 주기: <strong>${fmtInterval(session.interval_hours)}</strong></span>
+        </div>
         <div class="stat-row">
           <span>증상 주입: <strong>${injectCount}회</strong></span>
           <span>마지막 수신: <strong>${lastSeen}</strong></span>

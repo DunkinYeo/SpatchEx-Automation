@@ -236,6 +236,8 @@ def api_hub_events():
                 "last_seen": ts,
                 "status": "running",
                 "device": payload.get("udid") or payload.get("device_name") or "",
+                "duration_hours": None,
+                "interval_hours": None,
             }
         session = _hub_sessions[tester]
         session["last_seen"] = ts
@@ -250,9 +252,14 @@ def api_hub_events():
             session["status"] = "failed"
         else:
             session["status"] = "running"
-        # Capture device info from run_start or device_info event
-        if event == "run_start" and payload.get("udid"):
-            session["device"] = payload["udid"]
+        # Capture run config and device info
+        if event == "run_start":
+            if payload.get("udid"):
+                session["device"] = payload["udid"]
+            if payload.get("duration_hours") is not None:
+                session["duration_hours"] = payload["duration_hours"]
+            if payload.get("interval_hours") is not None:
+                session["interval_hours"] = payload["interval_hours"]
         if event == "device_info":
             model = payload.get("model") or ""
             manufacturer = payload.get("manufacturer") or ""
