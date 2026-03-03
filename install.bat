@@ -1,71 +1,122 @@
 @echo off
 cd /d "%~dp0"
+setlocal enabledelayedexpansion
 
 echo.
-echo   +--------------------------------------+
-echo   |  SpatchEx Long-Run Test -- Setup     |
-echo   +--------------------------------------+
+echo   +--------------------------------------------------+
+echo   ^|  SpatchEx Long-Run Test -- Setup                ^|
+echo   ^|  This may take 10-20 minutes on first run       ^|
+echo   +--------------------------------------------------+
 echo.
+
+REM ── Helper: refresh PATH from Windows registry ────────────────────────────
+GOTO :main
+
+:refresh_path
+  for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')+';'+[System.Environment]::GetEnvironmentVariable('Path','User')"`) do (
+    set "PATH=%%i"
+  )
+GOTO :EOF
+
+:main
 
 REM ── 1. Python ────────────────────────────────────────────────────────────────
 echo [1/5] Checking Python...
 python --version >nul 2>&1
+if not errorlevel 1 (
+  for /f "tokens=*" %%i in ('python --version') do echo   OK  %%i
+  GOTO :check_node
+)
+
+echo   Python not found. Installing automatically (winget)...
+winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
 if errorlevel 1 (
-  echo   Python is not installed.
-  echo   Please install Python 3.10 or later from:
+  echo.
+  echo   Auto-install failed. Please install Python manually:
   echo   https://www.python.org/downloads/
   echo   IMPORTANT: check "Add Python to PATH" during install!
   start https://www.python.org/downloads/
+  echo.
+  echo   After installing Python, close this window and re-run install.bat
   pause
   exit /b 1
-) else (
-  for /f "tokens=*" %%i in ('python --version') do echo   OK  %%i
 )
+call :refresh_path
+python --version >nul 2>&1
+if errorlevel 1 (
+  echo.
+  echo   Python installed. PATH not yet updated.
+  echo   Please CLOSE this window and RE-RUN install.bat
+  pause
+  exit /b 0
+)
+for /f "tokens=*" %%i in ('python --version') do echo   OK  %%i
 
+:check_node
 REM ── 2. Node.js ───────────────────────────────────────────────────────────────
 echo.
 echo [2/5] Checking Node.js...
 node --version >nul 2>&1
-if errorlevel 1 (
-  echo   Node.js is not installed.
-  echo   Please install Node.js LTS from:
-  echo   https://nodejs.org/
-  start https://nodejs.org/
-  echo   Re-run this script after installing.
-  pause
-  exit /b 1
-) else (
+if not errorlevel 1 (
   for /f "tokens=*" %%i in ('node --version') do echo   OK  Node.js %%i
+  GOTO :check_adb
 )
 
+echo   Node.js not found. Installing automatically (winget)...
+winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+  echo.
+  echo   Auto-install failed. Please install Node.js manually:
+  echo   https://nodejs.org/
+  start https://nodejs.org/
+  echo.
+  echo   After installing Node.js, close this window and re-run install.bat
+  pause
+  exit /b 1
+)
+call :refresh_path
+node --version >nul 2>&1
+if errorlevel 1 (
+  echo.
+  echo   Node.js installed. PATH not yet updated.
+  echo   Please CLOSE this window and RE-RUN install.bat
+  pause
+  exit /b 0
+)
+for /f "tokens=*" %%i in ('node --version') do echo   OK  Node.js %%i
+
+:check_adb
 REM ── 3. ADB ───────────────────────────────────────────────────────────────────
 echo.
 echo [3/5] Checking ADB...
 adb --version >nul 2>&1
-if errorlevel 1 (
-  echo   Installing Android Platform Tools...
-  winget install Google.PlatformTools >nul 2>&1
-  if errorlevel 1 (
-    echo   Auto-install failed. Please install manually from:
-    echo   https://developer.android.com/tools/releases/platform-tools
-    start https://developer.android.com/tools/releases/platform-tools
-    pause
-    exit /b 1
-  )
-  echo   OK  ADB installed (restart terminal if adb is not found)
-) else (
+if not errorlevel 1 (
   echo   OK  ADB already installed
+  GOTO :check_appium
 )
 
+echo   ADB not found. Installing Android Platform Tools (winget)...
+winget install -e --id Google.PlatformTools --accept-package-agreements --accept-source-agreements
+if errorlevel 1 (
+  echo   Auto-install failed. Please install manually:
+  echo   https://developer.android.com/tools/releases/platform-tools
+  start https://developer.android.com/tools/releases/platform-tools
+  pause
+  exit /b 1
+)
+call :refresh_path
+echo   OK  ADB installed
+
+:check_appium
 REM ── 4. Appium ────────────────────────────────────────────────────────────────
 echo.
 echo [4/5] Installing Appium...
 appium --version >nul 2>&1
-if errorlevel 1 (
+if not errorlevel 1 (
+  for /f "tokens=*" %%i in ('appium --version') do echo   OK  Appium %%i
+) else (
   npm install -g appium
   echo   OK  Appium installed
-) else (
-  for /f "tokens=*" %%i in ('appium --version') do echo   OK  Appium %%i
 )
 
 appium driver list --installed 2>nul | findstr "uiautomator2" >nul
@@ -89,9 +140,9 @@ echo   OK  Packages installed
 
 REM ── Done ────────────────────────────────────────────────────────────────────
 echo.
-echo   +--------------------------------------+
-echo   |        Setup complete!               |
-echo   +--------------------------------------+
+echo   +--------------------------------------------------+
+echo   ^|  Setup complete!                                ^|
+echo   +--------------------------------------------------+
 echo.
 echo   Next steps:
 echo   1. Connect your Android phone via USB or pair via WiFi
