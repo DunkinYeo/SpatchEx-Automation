@@ -11,8 +11,10 @@ cd /d "%~dp0"
 echo.
 echo   +--------------------------------------------------+
 echo   ^|  SpatchEx Long-Run Test -- Setup                ^|
-echo   ^|  First run: ~50 MB download (cached after)      ^|
 echo   +--------------------------------------------------+
+echo.
+echo   First run may download required tools (a few minutes).
+echo   If you see "CLOSE and RE-RUN", close this window and run again.
 echo.
 
 REM ── 1. Python ────────────────────────────────────────────────────────────────

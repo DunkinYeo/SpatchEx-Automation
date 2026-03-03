@@ -18,9 +18,8 @@
 2. ZIP 압축 해제
 
 3. **`install.bat`** 더블클릭
-   Python · Node.js · ADB · Appium 자동 설치
-   *(Appium 첫 실행 시 ~50MB 다운로드, 이후 캐시 사용)*
-   *(중간에 설치가 안 된다는 오류가 나오면 화면의 안내 따라 수동 설치 후 재실행)*
+   Python · Node.js · ADB · Appium 자동 설치 (첫 실행 시 몇 분 소요)
+   *"CLOSE and RE-RUN" 메시지가 나오면 창 닫고 다시 실행하세요*
 
 ### Mac
 
@@ -32,8 +31,7 @@
    ```
 
 3. **`run.command`** 더블클릭
-   Python · Node.js · ADB · Appium 자동 설치
-   *(Appium 첫 실행 시 ~50MB 다운로드, 이후 캐시 사용)*
+   Python · Node.js · ADB · Appium 자동 설치 (첫 실행 시 몇 분 소요)
 
 ---
 
