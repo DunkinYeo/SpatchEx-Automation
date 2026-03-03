@@ -16,8 +16,8 @@ Android (Appium + UiAutomator2) 기반. 비개발자도 ZIP 한 번으로 바로
 
 | OS | 파일 |
 |----|------|
-| Mac | `실행.command` 더블클릭 |
-| Windows | `실행.bat` 더블클릭 |
+| Mac | `run.command` 더블클릭 |
+| Windows | `run.bat` 더블클릭 |
 
 > 처음 실행 시 Python·Node.js·ADB·Appium 자동 설치 (5~15분).
 > 두 번째 실행부터는 바로 웹 UI가 열립니다.
@@ -31,7 +31,7 @@ Android (Appium + UiAutomator2) 기반. 비개발자도 ZIP 한 번으로 바로
 > xattr -cr .
 > ```
 >
-> **방법 B — 시스템 설정**: `실행.command` 더블클릭 → 경고창 확인 → **시스템 설정 → 개인 정보 보호 및 보안** → 하단 "보안" 섹션에서 **"확인 없이 열기"** 클릭
+> **방법 B — 시스템 설정**: `run.command` 더블클릭 → 경고창 확인 → **시스템 설정 → 개인 정보 보호 및 보안** → 하단 "보안" 섹션에서 **"확인 없이 열기"** 클릭
 
 ---
 
@@ -81,7 +81,7 @@ Android (Appium + UiAutomator2) 기반. 비개발자도 ZIP 한 번으로 바로
 
 ### 관리자가 할 일
 
-1. 본인 PC에서 서버 실행: `실행.command` (Mac) 또는 `실행.bat` (Windows)
+1. 본인 PC에서 서버 실행: `run.command` (Mac) 또는 `run.bat` (Windows)
 2. 브라우저에서 팀 대시보드 열기:
    ```
    http://localhost:5001/team
@@ -116,8 +116,8 @@ Android (Appium + UiAutomator2) 기반. 비개발자도 ZIP 한 번으로 바로
 
 | OS | 파일 |
 |----|------|
-| Mac | `실행.command` 또는 `start.sh` |
-| Windows | `실행.bat` 또는 `start.bat` |
+| Mac | `run.command` 또는 `start.sh` |
+| Windows | `run.bat` 또는 `start.bat` |
 
 ---
 
