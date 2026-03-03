@@ -11,7 +11,7 @@ cd /d "%~dp0"
 echo.
 echo   +--------------------------------------------------+
 echo   ^|  SpatchEx Long-Run Test -- Setup                ^|
-echo   ^|  This may take 10-20 minutes on first run       ^|
+echo   ^|  First run: ~50 MB download (cached after)      ^|
 echo   +--------------------------------------------------+
 echo.
 
