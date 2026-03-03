@@ -14,29 +14,46 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 
 ## 사용 방법 (Web UI — 비개발자용)
 
-### 🚀 원클릭 설치 + 실행 (아무것도 없는 환경에서 바로 시작)
+### 🚀 원클릭 설치 + 실행
 
-**Mac** — 터미널을 열고 아래 한 줄 붙여넣기:
+#### 방법 1 — ZIP 파일 공유 (가장 간단, 채팅으로 전달 가능)
+
+**[⬇ ZIP 다운로드](https://github.com/DunkinYeo/SpatchEx-Automation/archive/refs/heads/main.zip)**
+
+1. ZIP 다운로드 → 압축 해제
+2. 폴더 안의 파일을 더블클릭:
+
+| OS | 파일 |
+|----|------|
+| Mac | `실행.command` 더블클릭 |
+| Windows | `실행.bat` 더블클릭 |
+
+> 처음 실행 시 Python·Node.js·ADB·Appium 자동 설치 (5~15분).
+> 두 번째 실행부터는 바로 웹 UI가 열립니다.
+
+> **Mac 주의**: 처음 더블클릭 시 "개발자를 확인할 수 없음" 경고 → 우클릭 → 열기 → 열기
+
+---
+
+#### 방법 2 — 터미널 한 줄 (터미널에 익숙한 경우)
+
+**Mac:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.sh | bash
 ```
-
-**Windows** — PowerShell을 **관리자 권한**으로 열고 아래 한 줄 붙여넣기:
+**Windows** (PowerShell 관리자):
 ```powershell
 irm https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.ps1 | iex
 ```
-
-> 실행하면 Python, Node.js, ADB, Appium 설치 → 코드 다운로드 → 웹 UI 자동 실행까지 한 번에 완료됩니다.
-> 설치 시간: 약 5~15분 (인터넷 속도에 따라 다름)
 
 ---
 
 ### 이미 설치한 경우 — 실행만 하기
 
-| OS | 방법 |
+| OS | 파일 |
 |----|------|
-| Mac | `start.sh` 더블클릭 (또는 `./start.sh`) |
-| Windows | `start.bat` 더블클릭 |
+| Mac | `실행.command` 또는 `start.sh` 더블클릭 |
+| Windows | `실행.bat` 또는 `start.bat` 더블클릭 |
 
 브라우저가 자동으로 열리면 → 설정 후 **▶ 테스트 시작** 클릭
 
