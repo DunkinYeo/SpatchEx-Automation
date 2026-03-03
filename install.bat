@@ -110,19 +110,21 @@ echo   Make sure Node.js is properly installed and try again.
 GOTO :done
 
 :appium_ok
-REM After npm install, appium lands in %APPDATA%\npm — already in PATH above
 FOR /F "tokens=*" %%i IN ('appium --version 2^>nul') DO echo   OK  Appium %%i
 
+REM Check UiAutomator2 via temp file (pipe+ERRORLEVEL unreliable on Windows)
 echo   Checking UiAutomator2 driver...
-appium driver list --installed 2>nul | findstr /i "uiautomator2" >nul
+SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
+appium driver list --installed > "%DRIVER_TMP%" 2>&1
+findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
-echo   Installing UiAutomator2 driver...
+echo   UiAutomator2 not installed. Installing now...
 appium driver install uiautomator2
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 echo.
 echo   ERROR: Failed to install UiAutomator2 driver.
-echo   Try running: appium driver install uiautomator2
+echo   Try running manually: appium driver install uiautomator2
 GOTO :done
 
 :uia2_ok
