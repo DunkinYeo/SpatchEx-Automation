@@ -21,6 +21,10 @@ app = Flask(__name__)
 _state: dict = {"proc": None, "out_dir": None, "start_ts": None}
 _lock = threading.Lock()
 
+# ── Hub state (team dashboard) ────────────────────────────────────────────────
+_hub_sessions: dict = {}   # tester_name → {events, last_seen, status, device}
+_hub_lock = threading.Lock()
+
 # ── Selectors embedded for spatch-ex (bilingual) ─────────────────────────────
 SPATCH_EX_SELECTORS = {
     "start_now_text": "Start Now",
@@ -153,6 +157,9 @@ def api_start():
         device = data.get("device", "")
         symptoms = data.get("symptoms") or ["Chest Pain", "Palpitations", "Dizziness", "Short Breath"]
 
+        hub_url     = (data.get("hub_url") or "").strip()
+        tester_name = (data.get("tester_name") or "").strip()
+
         cfg = {
             "platform": "android",
             "run": {
@@ -174,6 +181,11 @@ def api_start():
             "symptom_plan": [],
             "symptom_catalog": symptoms,
             "slack": {"enabled": False, "webhook_url": "", "mention": ""},
+            "hub": {
+                "enabled": bool(hub_url),
+                "url": hub_url,
+                "tester_name": tester_name or (data.get("run_name") or "tester"),
+            },
         }
 
         cfg_path = ROOT / "config" / "_web_run.yaml"
@@ -199,6 +211,56 @@ def api_stop():
             proc.terminate()
         _state["proc"] = None
     return jsonify({"ok": True})
+
+
+# ── Hub routes (team dashboard) ───────────────────────────────────────────────
+
+@app.route("/team")
+def team():
+    return render_template("team.html")
+
+
+@app.route("/api/hub/events", methods=["POST"])
+def api_hub_events():
+    """Receive a single event from a team member's running test."""
+    data = request.json or {}
+    tester = data.get("tester_name") or "unknown"
+    event  = data.get("event") or ""
+    ts     = data.get("ts") or ""
+    payload = data.get("data") or {}
+
+    with _hub_lock:
+        if tester not in _hub_sessions:
+            _hub_sessions[tester] = {
+                "events": [],
+                "last_seen": ts,
+                "status": "running",
+                "device": payload.get("udid") or payload.get("device_name") or "",
+            }
+        session = _hub_sessions[tester]
+        session["last_seen"] = ts
+        session["events"].append({"ts": ts, "event": event, "data": payload})
+        # Keep last 200 events per tester to avoid unbounded growth
+        if len(session["events"]) > 200:
+            session["events"] = session["events"][-200:]
+        # Derive status from terminal events
+        if event == "run_complete":
+            session["status"] = "done"
+        elif event == "run_failed":
+            session["status"] = "failed"
+        else:
+            session["status"] = "running"
+        # Capture device info from run_start
+        if event == "run_start" and payload.get("udid"):
+            session["device"] = payload["udid"]
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/hub/sessions")
+def api_hub_sessions():
+    with _hub_lock:
+        return jsonify(dict(_hub_sessions))
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

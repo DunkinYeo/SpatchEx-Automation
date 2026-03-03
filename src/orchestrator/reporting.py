@@ -1,11 +1,13 @@
-import os, json, datetime
+import os, json, datetime, threading
 from jinja2 import Template
 
 class RunReporter:
-    def __init__(self, out_dir: str, run_name: str):
+    def __init__(self, out_dir: str, run_name: str, hub_url: str = "", tester_name: str = ""):
         self.out_dir = out_dir
         self.run_name = run_name
         self.events_path = os.path.join(out_dir, "events.jsonl")
+        self._hub_url = (hub_url or "").rstrip("/")
+        self._tester_name = tester_name or run_name
 
     def log_event(self, event: str, data: dict):
         rec = {
@@ -15,6 +17,25 @@ class RunReporter:
         }
         with open(self.events_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        if self._hub_url:
+            self._forward_to_hub(rec)
+
+    def _forward_to_hub(self, rec: dict):
+        payload = {**rec, "tester_name": self._tester_name}
+        def _send():
+            try:
+                import urllib.request
+                body = json.dumps(payload, ensure_ascii=False).encode()
+                req = urllib.request.Request(
+                    f"{self._hub_url}/api/hub/events",
+                    data=body,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=3)
+            except Exception:
+                pass  # never block the test on hub failures
+        threading.Thread(target=_send, daemon=True).start()
 
     def render_html_summary(self):
         # very small summary page

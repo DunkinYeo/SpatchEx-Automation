@@ -36,7 +36,13 @@ def main():
     out_dir = os.path.join("output", run_id)
     os.makedirs(out_dir, exist_ok=True)
 
-    reporter = RunReporter(out_dir=out_dir, run_name=run_cfg.get("name", "run"))
+    hub_cfg = cfg.get("hub") or {}
+    reporter = RunReporter(
+        out_dir=out_dir,
+        run_name=run_cfg.get("name", "run"),
+        hub_url=hub_cfg.get("url", "") if hub_cfg.get("enabled") else "",
+        tester_name=hub_cfg.get("tester_name", ""),
+    )
     artifacts = ArtifactManager(out_dir=out_dir)
 
     reporter.log_event(

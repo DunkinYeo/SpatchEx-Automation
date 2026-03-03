@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpatchEx 팀 대시보드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e3a5f;
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header h1 { font-size: 1.15rem; font-weight: 600; }
+    .header-right { font-size: .78rem; color: rgba(255,255,255,.6); }
+
+    main {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 0;
+      color: #9ca3af;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .95rem; }
+    .empty-state code {
+      display: inline-block;
+      margin-top: 8px;
+      background: #e5e7eb;
+      color: #374151;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: .82rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.04);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tester-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+    .tester-device {
+      font-size: .75rem;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 11px;
+      border-radius: 20px;
+      font-size: .76rem;
+      font-weight: 600;
+    }
+    .badge-running { background: rgba(59,130,246,.12); color: #3b82f6; border: 1px solid rgba(59,130,246,.25); }
+    .badge-done    { background: rgba(16,185,129,.12); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
+    .badge-failed  { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.25); }
+
+    .card-body { padding: 14px 20px 18px; }
+
+    .stat-row {
+      display: flex;
+      gap: 18px;
+      margin-bottom: 14px;
+      font-size: .8rem;
+      color: #6b7280;
+    }
+    .stat-row strong { color: #1a1a2e; }
+
+    .log-title {
+      font-size: .75rem;
+      font-weight: 700;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 6px;
+    }
+    .log-list {
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: .77rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f9fafb;
+    }
+    .log-ts { color: #9ca3af; flex-shrink: 0; }
+    .log-label { font-weight: 600; }
+
+    .log-item.ev-inject    { background: #eff6ff; }
+    .log-item.ev-inject .log-label { color: #3b82f6; }
+    .log-item.ev-complete  { background: #ecfdf5; }
+    .log-item.ev-complete .log-label { color: #10b981; }
+    .log-item.ev-failed    { background: #fef2f2; }
+    .log-item.ev-failed .log-label { color: #ef4444; }
+    .log-item.ev-recovery  { background: #fffbeb; }
+    .log-item.ev-recovery .log-label { color: #f59e0b; }
+
+    .refresh-note {
+      text-align: right;
+      font-size: .72rem;
+      color: #d1d5db;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>SpatchEx 팀 테스트 대시보드</h1>
+  <div class="header-right" id="last-refresh">-</div>
+</header>
+
+<main>
+  <div id="empty-state" class="empty-state" style="display:none">
+    <div class="icon">📡</div>
+    <p>아직 수신된 테스트가 없습니다.</p>
+    <p style="margin-top:8px">팀원 설정에서 허브 URL을 이 PC의 주소로 입력하면 자동으로 연결됩니다.</p>
+    <code id="hub-url-hint">http://&lt;이 PC의 IP&gt;:5001</code>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="refresh-note">5초마다 자동 갱신</div>
+</main>
+
+<script>
+const EVENT_LABELS = {
+  run_start:              { label: '테스트 시작',       cls: '' },
+  measurement_started:    { label: '측정 시작',         cls: '' },
+  inject_symptom_start:   { label: '증상 주입 시작',   cls: 'ev-inject' },
+  inject_symptom_done:    { label: '증상 주입 완료',   cls: 'ev-inject' },
+  run_complete:           { label: '테스트 완료',       cls: 'ev-complete' },
+  run_failed:             { label: '테스트 실패',       cls: 'ev-failed' },
+  session_recovered:      { label: '세션 복구',         cls: 'ev-recovery' },
+  session_recovery_failed:{ label: '복구 실패',         cls: 'ev-failed' },
+  ui_health_check_failed: { label: 'UI 이상 감지',      cls: 'ev-recovery' },
+};
+
+function fmtTime(ts) {
+  if (!ts) return '-';
+  return ts.length >= 19 ? ts.slice(11, 19) : ts;
+}
+
+function statusBadge(status) {
+  if (status === 'done')    return '<span class="badge badge-done">완료 ✓</span>';
+  if (status === 'failed')  return '<span class="badge badge-failed">실패 ✗</span>';
+  return '<span class="badge badge-running">실행 중 ●</span>';
+}
+
+function eventCls(event) {
+  if (EVENT_LABELS[event]) return EVENT_LABELS[event].cls;
+  if (event.includes('inject')) return 'ev-inject';
+  if (event.includes('fail') || event.includes('error')) return 'ev-failed';
+  if (event.includes('recover')) return 'ev-recovery';
+  return '';
+}
+
+function eventLabel(event, data) {
+  const info = EVENT_LABELS[event];
+  if (info) {
+    if (event === 'inject_symptom_done' && data && data.symptoms)
+      return `증상 주입 완료: ${data.symptoms.join(', ')}`;
+    if (event === 'session_recovered' && data && data.recovery_step)
+      return `세션 복구 (step ${data.recovery_step})`;
+    return info.label;
+  }
+  return event.replace(/_/g, ' ');
+}
+
+function countInjects(events) {
+  return events.filter(e => e.event === 'inject_symptom_done').length;
+}
+
+function renderCard(name, session) {
+  const events = session.events || [];
+  const recent = [...events].reverse().slice(0, 15);
+
+  const logItems = recent.map(e => {
+    const cls = eventCls(e.event);
+    const lbl = eventLabel(e.event, e.data);
+    return `<div class="log-item ${cls}">
+      <span class="log-ts">${fmtTime(e.ts)}</span>
+      <span class="log-label">${lbl}</span>
+    </div>`;
+  }).join('');
+
+  const injectCount = countInjects(events);
+  const lastSeen = fmtTime(session.last_seen);
+
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="tester-name">${name}</div>
+          <div class="tester-device">${session.device || '기기 정보 없음'}</div>
+        </div>
+        ${statusBadge(session.status)}
+      </div>
+      <div class="card-body">
+        <div class="stat-row">
+          <span>증상 주입: <strong>${injectCount}회</strong></span>
+          <span>마지막 수신: <strong>${lastSeen}</strong></span>
+        </div>
+        <div class="log-title">최근 이벤트</div>
+        <div class="log-list">${logItems || '<div style="color:#d1d5db;font-size:.8rem;padding:8px">이벤트 없음</div>'}</div>
+      </div>
+    </div>`;
+}
+
+async function refresh() {
+  try {
+    const sessions = await fetch('/api/hub/sessions').then(r => r.json());
+    const names = Object.keys(sessions);
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty-state');
+
+    if (names.length === 0) {
+      empty.style.display = 'block';
+      grid.innerHTML = '';
+    } else {
+      empty.style.display = 'none';
+      grid.innerHTML = names
+        .sort()
+        .map(n => renderCard(n, sessions[n]))
+        .join('');
+    }
+    document.getElementById('last-refresh').textContent =
+      '마지막 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  } catch (e) {
+    console.error('refresh error', e);
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

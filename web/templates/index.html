@@ -232,6 +232,16 @@
         <input type="text" id="run-name" placeholder="예: Alice_UAT_Round1" value="uat_run">
       </div>
 
+      <!-- Hub (optional) -->
+      <div class="field">
+        <label>팀 허브 URL <span style="color:#9ca3af;font-weight:400">(선택, 담당자가 알려준 주소)</span></label>
+        <input type="text" id="hub-url" placeholder="예: http://192.168.1.100:5001" value="">
+      </div>
+      <div class="field">
+        <label>내 이름 <span style="color:#9ca3af;font-weight:400">(허브에서 구분에 사용)</span></label>
+        <input type="text" id="tester-name" placeholder="예: 팀원A" value="">
+      </div>
+
       <!-- Duration -->
       <div class="field">
         <label>측정 시간</label>
@@ -468,6 +478,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     duration_hours: parseInt(document.getElementById('duration-val').value),
     interval_hours: parseFloat(document.getElementById('interval-select').value),
     symptoms,
+    hub_url:        (document.getElementById('hub-url').value || '').trim(),
+    tester_name:    (document.getElementById('tester-name').value || '').trim(),
   };
 
   const r = await fetch('/api/start', {

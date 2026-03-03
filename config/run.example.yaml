@@ -92,3 +92,11 @@ slack:
   enabled: false
   webhook_url: ""
   mention: ""
+
+# ── Hub (team dashboard) ───────────────────────────────────────────────────────
+# 테스트 관리자의 PC에서 실행 중인 허브 서버 주소를 입력하면
+# 이 PC의 테스트 결과가 관리자 대시보드(/team)에 실시간으로 전송됩니다.
+hub:
+  enabled: false
+  url: ""          # 예: http://192.168.1.100:5001
+  tester_name: ""  # 허브에서 구분할 이름 (예: 팀원A)
