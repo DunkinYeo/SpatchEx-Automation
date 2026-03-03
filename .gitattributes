@@ -1,0 +1,16 @@
+# Windows scripts — always CRLF
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# Unix scripts — always LF
+*.sh        text eol=lf
+*.command   text eol=lf
+
+# Python / YAML / HTML — LF
+*.py        text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.html      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
