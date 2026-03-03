@@ -65,7 +65,7 @@ else
 fi
 
 step "Appium UiAutomator2 드라이버 확인"
-if ! appium driver list --installed 2>/dev/null | grep -q "uiautomator2"; then
+if ! appium driver list --installed 2>&1 | grep -q "uiautomator2"; then
   appium driver install uiautomator2
   ok "UiAutomator2 드라이버 설치 완료"
 else
