@@ -25,13 +25,18 @@ class ArtifactManager:
         # best-effort short capture
         path = os.path.join(self.log_dir, f"{self._ts()}_{name}.txt")
         try:
-            out = subprocess.check_output(["bash", "-lc", f"adb logcat -d -t {seconds}"], stderr=subprocess.STDOUT).decode("utf-8", errors="ignore")
+            # Windows has no bash; run adb directly. On Mac/Linux use bash -lc
+            # so that adb installed via Homebrew (not on default PATH) is found.
+            if os.name == "nt":
+                cmd = ["adb", "logcat", "-d", "-t", str(seconds)]
+            else:
+                cmd = ["bash", "-lc", f"adb logcat -d -t {seconds}"]
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8", errors="ignore")
             with open(path, "w", encoding="utf-8") as f:
                 f.write(out)
             return path
         except Exception as e:
             try:
-                # best-effort console message to aid debugging when reporter isn't available
                 print(f"collect_android_logcat failed: {e}")
             except Exception:
                 pass

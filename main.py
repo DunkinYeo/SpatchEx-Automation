@@ -2,6 +2,8 @@ import argparse
 import datetime
 import os
 import random
+import subprocess
+import sys
 
 import yaml
 
@@ -12,6 +14,33 @@ from src.utils.artifacts import ArtifactManager
 from src.utils.slack import slack_notify
 from src.workflows.measurement_start import ensure_measurement_started
 from src.workflows.symptom_inject import inject_symptom_event
+
+
+def ensure_uiautomator2(reporter: RunReporter) -> None:
+    """Preflight: ensure the uiautomator2 Appium driver is installed.
+
+    On Windows, npm global scripts are .cmd files so we call appium.cmd.
+    Best-effort — if the check itself fails we skip and let Appium error
+    naturally during driver connection.
+    """
+    appium = "appium.cmd" if sys.platform == "win32" else "appium"
+    try:
+        out = subprocess.check_output(
+            [appium, "driver", "list", "--installed"],
+            stderr=subprocess.STDOUT,
+            timeout=30,
+        ).decode("utf-8", errors="ignore")
+        if "uiautomator2" in out.lower():
+            return  # already installed
+    except Exception:
+        return  # appium not reachable — skip preflight
+
+    reporter.log_event("appium_driver_install_start", {"driver": "uiautomator2"})
+    try:
+        subprocess.check_call([appium, "driver", "install", "uiautomator2"], timeout=180)
+        reporter.log_event("appium_driver_install_done", {"driver": "uiautomator2"})
+    except Exception as e:
+        reporter.log_event("appium_driver_install_failed", {"driver": "uiautomator2", "error": str(e)})
 
 
 def load_cfg(path: str) -> dict:
@@ -65,6 +94,7 @@ def main():
         sel = (cfg.get("selectors") or {}).get("android") or {}
         catalog = cfg.get("symptom_catalog") or []
 
+        ensure_uiautomator2(reporter)
         driver = AndroidDriver(a_cfg, sel, artifacts=artifacts, reporter=reporter)
         reporter.log_event("device_info", driver.get_device_info())
 
