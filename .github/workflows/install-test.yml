@@ -39,7 +39,7 @@ jobs:
         run: appium --version
 
       - name: Verify — UiAutomator2 driver installed
-        run: appium driver list --installed | grep uiautomator2
+        run: appium driver list --installed 2>&1 | grep uiautomator2
 
       - name: Verify — web app importable
         run: |
