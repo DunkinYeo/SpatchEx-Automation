@@ -66,6 +66,7 @@ def main():
         catalog = cfg.get("symptom_catalog") or []
 
         driver = AndroidDriver(a_cfg, sel, artifacts=artifacts, reporter=reporter)
+        reporter.log_event("device_info", driver.get_device_info())
 
         # 1) Ensure measurement is running (idempotent)
         ensure_measurement_started(driver)

@@ -1,3 +1,4 @@
+import subprocess
 import time
 
 from appium import webdriver
@@ -322,3 +323,21 @@ class AndroidDriver:
 
     def wait_idle(self, seconds: float = 1.0):
         time.sleep(seconds)
+
+    def get_device_info(self) -> dict:
+        """Query model, manufacturer, Android version via adb shell getprop."""
+        udid = self.cfg.get("udid", "")
+
+        def _prop(name: str) -> str:
+            try:
+                cmd = ["adb"] + (["-s", udid] if udid else []) + ["shell", "getprop", name]
+                return subprocess.check_output(cmd, timeout=5).decode().strip()
+            except Exception:
+                return ""
+
+        return {
+            "model": _prop("ro.product.model"),
+            "manufacturer": _prop("ro.product.manufacturer"),
+            "android_version": _prop("ro.build.version.release"),
+            "udid": udid,
+        }

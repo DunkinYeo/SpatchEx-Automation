@@ -250,9 +250,25 @@ def api_hub_events():
             session["status"] = "failed"
         else:
             session["status"] = "running"
-        # Capture device info from run_start
+        # Capture device info from run_start or device_info event
         if event == "run_start" and payload.get("udid"):
             session["device"] = payload["udid"]
+        if event == "device_info":
+            model = payload.get("model") or ""
+            manufacturer = payload.get("manufacturer") or ""
+            android_ver = payload.get("android_version") or ""
+            udid = payload.get("udid") or ""
+            parts = []
+            if manufacturer and model:
+                parts.append(f"{manufacturer} {model}")
+            elif model:
+                parts.append(model)
+            if android_ver:
+                parts.append(f"Android {android_ver}")
+            if udid:
+                parts.append(f"({udid})")
+            if parts:
+                session["device"] = " · ".join(parts[:2]) + (f" {parts[2]}" if len(parts) > 2 else "")
 
     return jsonify({"ok": True})
 
