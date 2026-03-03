@@ -31,7 +31,16 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 > 처음 실행 시 Python·Node.js·ADB·Appium 자동 설치 (5~15분).
 > 두 번째 실행부터는 바로 웹 UI가 열립니다.
 
-> **Mac 주의**: 처음 더블클릭 시 "개발자를 확인할 수 없음" 경고 → 우클릭 → 열기 → 열기
+> **Mac 주의 — Gatekeeper 경고 해제**
+>
+> 인터넷에서 다운로드한 파일은 macOS가 실행을 막습니다. 아래 중 하나로 해제하세요.
+>
+> **방법 A (가장 쉬움)**: `실행.command` **우클릭 → 열기** → 경고창에서 **열기** 클릭
+>
+> **방법 B (터미널)**: 압축 해제한 폴더에서 터미널 열고 아래 명령 실행 후 더블클릭:
+> ```bash
+> xattr -cr .
+> ```
 
 ---
 
