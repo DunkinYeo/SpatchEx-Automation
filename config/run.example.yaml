@@ -1,56 +1,79 @@
-platform: android
+# ─────────────────────────────────────────────────────────────────────────────
+# SpatchEx Automation — Example Config
+# Copy this file to config/my-app.yaml and fill in the required fields.
+# Run with: python main.py --config config/my-app.yaml
+# ─────────────────────────────────────────────────────────────────────────────
 
+platform: android   # only "android" is supported
+
+# ── Run settings ─────────────────────────────────────────────────────────────
 run:
-  name: "spatch_ex_longrun"
-  duration_hours: 24
-  symptom_interval_hours: 4
-  start_immediately: true
+  name: "spatch_ex_longrun"   # used for output folder / log naming
+  duration_hours: 24          # total test duration (24 / 48 / 72)
+  symptom_interval_hours: 4   # how often to inject a symptom automatically
+  start_immediately: true     # if false, waits for the first interval before injecting
 
+# ── Android / Appium connection ───────────────────────────────────────────────
 android:
+  # [REQUIRED] Appium server address — default is localhost:4723
   appium_server_url: "http://127.0.0.1:4723"
-  device_name: "Android"
-  udid: ""                # set if multiple devices are connected
-  app_package: "com.example.spatch"   # TODO: set real package
-  app_activity: ".MainActivity"       # TODO: set real activity
-  no_reset: true
-  new_command_timeout: 3600
 
+  # platformName and automationName are set automatically to
+  # "Android" and "UiAutomator2" — no need to set them here.
+
+  # [REQUIRED] Device identifier — run `adb devices` to find yours
+  device_name: "Android"        # human-readable label (any string)
+  udid: ""                      # serial from `adb devices` (required if >1 device)
+
+  # [REQUIRED] Target app identifiers
+  # Find with: adb shell dumpsys window | grep mCurrentFocus
+  app_package:  "com.example.app"   # e.g. com.wellysis.spatchcardio.ex
+  app_activity: ".MainActivity"     # e.g. com.wellysis.spatchcardio.ex.MainActivity
+
+  no_reset: true                # true = keep app data between sessions
+  new_command_timeout: 3600     # seconds before Appium drops idle session
+
+# ── UI selectors ──────────────────────────────────────────────────────────────
+# Each value can be a string or a list of strings (tried in order).
+# Use a list to support both app language variants, e.g. ["OK", "확인"].
 selectors:
   android:
-    # ── Measurement start ─────────────────────────────────────────────
-    start_now_text: "Start Now"
-    consent_agree_text: "Agree"
-    use_spatch_text: "Use S-Patch"
-    duration_sheet_title: "Select a test period"
-    duration_24h_text: "24 Hours"
-    duration_48h_text: "48 Hours"
-    duration_72h_text: "72 Hours"
-    confirm_text: "Confirm"
+    # ── Measurement start ──────────────────────────────────────────────
+    start_now_text:         "Start Now"
+    consent_agree_text:     ["Agree", "동의"]
+    use_spatch_text:        ["Use S-Patch", "S-Patch 사용하기"]
+    duration_sheet_title:   ["Select a test period", "검사 기간을 선택해주세요"]
+    duration_24h_text:      ["24 Hours", "24 시간"]
+    duration_48h_text:      ["48 Hours", "48 시간"]
+    duration_72h_text:      ["72 Hours", "72 시간"]
+    confirm_text:           ["Confirm", "OK", "확인"]
 
-    # ── Offline mode (leave blank if your app has no offline path) ────
-    offline_mode_text: "Offline"          # text/badge that indicates offline state
-    offline_checkbox_id: ""               # resource-id of the consent checkbox
-    offline_agree_text: "I Agree"         # fallback text if no resource-id
-    offline_confirm_text: ""              # separate confirm button (if any)
+    # ── Offline mode (leave blank if your app has no offline path) ─────
+    offline_mode_text:      ["Offline", "오프라인"]
+    offline_checkbox_id:    ""          # resource-id of consent checkbox
+    offline_agree_text:     ["I Agree", "동의합니다"]
+    offline_confirm_text:   ""          # separate confirm button (if any)
 
-    # ── Running screen ────────────────────────────────────────────────
-    symptom_add_text: "Add Symptom"       # button on the main ECG screen
+    # ── Running screen ─────────────────────────────────────────────────
+    symptom_add_text:       ["Add Symptom", "증상 추가"]
 
-    # ── Symptom picker ────────────────────────────────────────────────
-    symptom_picker_title: "Check your symptoms"
-    symptom_confirm_text: ""              # submit button inside picker (leave blank if auto-closes)
-    symptom_done_text: ""                 # final journal button (leave blank if not present)
-    symptom_success_signal_text: ""       # toast/dialog confirming symptom was saved
+    # ── Symptom picker ─────────────────────────────────────────────────
+    symptom_picker_title:   ["Check your symptoms", "증상을 선택해주세요."]
+    symptom_confirm_text:   ""          # submit button inside picker (blank = auto-closes)
+    symptom_done_text:      ""          # final journal button (blank = not present)
+    symptom_success_signal_text: ""     # toast/dialog confirming save (blank = skip check)
 
-    # ── Other (free-text) input ───────────────────────────────────────
-    other_text_field_id: ""              # resource-id of the EditText (preferred)
-    keyboard_done_text: "Done"           # IME action button label to dismiss keyboard
+    # ── Other (free-text) input ────────────────────────────────────────
+    other_text_field_id:    ""          # resource-id of the EditText (preferred)
+    keyboard_done_text:     ["Done", "완료"]
 
-    # ── Activity picker ───────────────────────────────────────────────
-    add_activity_text: "Add Activity"
-    activity_submit_text: "Add Activity"
+    # ── Activity picker ────────────────────────────────────────────────
+    add_activity_text:      ["Add Activity", "활동 추가"]
+    activity_submit_text:   ["Add Activity", "활동 추가"]
 
-# symptom_plan: exact hour offsets.  Leave empty to use interval + catalog.
+# ── Symptom plan ──────────────────────────────────────────────────────────────
+# Define exact injection times (hours after test start).
+# Leave empty ([]) to use interval-based random injection from symptom_catalog.
 symptom_plan:
   - at_hour: 4
     symptoms: ["Palpitations"]
@@ -61,6 +84,8 @@ symptom_plan:
     other_text: "mild after walking"
     activities: ["Walking"]
 
+# ── Symptom catalog ───────────────────────────────────────────────────────────
+# Used when symptom_plan is empty — one is picked at random each interval.
 symptom_catalog:
   - "Chest Pain"
   - "Palpitations"
@@ -87,15 +112,16 @@ activity_catalog:
   - "Caffeine intake"
   - "Alcohol intake"
 
+# ── Slack notifications (optional) ───────────────────────────────────────────
 slack:
   enabled: false
   webhook_url: ""
   mention: ""
 
-# ── Hub (team dashboard) ──────────────────────────────────────────────────────
-# Enter the hub server URL (manager's PC) to send test results to the team
-# dashboard in real time (/team page on the manager's machine).
+# ── Hub / team dashboard (optional) ──────────────────────────────────────────
+# Set enabled: true and enter the manager's PC address to send real-time
+# results to the /team dashboard page.
 hub:
   enabled: false
-  url: ""          # e.g. http://192.168.1.100:5001
-  tester_name: ""  # name shown on the dashboard (e.g. Alice)
+  url: ""           # e.g. http://192.168.1.100:5001
+  tester_name: ""   # name shown on the dashboard (e.g. Alice)

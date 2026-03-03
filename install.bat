@@ -110,21 +110,26 @@ echo   Make sure Node.js is properly installed and try again.
 GOTO :done
 
 :appium_ok
-FOR /F "tokens=*" %%i IN ('appium --version 2^>nul') DO echo   OK  Appium %%i
+echo   Verifying Appium installation...
+appium -v
+echo   Installed drivers:
+appium driver list
 
 REM Check UiAutomator2 via temp file (pipe+ERRORLEVEL unreliable on Windows)
+echo.
 echo   Checking UiAutomator2 driver...
 SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
 appium driver list --installed > "%DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
-echo   UiAutomator2 not installed. Installing now...
+echo   UiAutomator2 not installed. Installing now (this may take a few minutes)...
 appium driver install uiautomator2
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 echo.
 echo   ERROR: Failed to install UiAutomator2 driver.
 echo   Try running manually: appium driver install uiautomator2
+SET SETUP_FAILED=1
 GOTO :done
 
 :uia2_ok
@@ -137,6 +142,7 @@ IF EXIST ".venv" GOTO :venv_ok
 python -m venv .venv
 IF NOT ERRORLEVEL 1 GOTO :venv_ok
 echo   ERROR: Failed to create virtual environment.
+SET SETUP_FAILED=1
 GOTO :done
 
 :venv_ok
@@ -144,10 +150,12 @@ call .venv\Scripts\activate.bat
 pip install -r requirements.txt -q
 IF NOT ERRORLEVEL 1 GOTO :pip_ok
 echo   ERROR: Failed to install Python packages.
+SET SETUP_FAILED=1
 GOTO :done
 
 :pip_ok
 echo   OK  Packages installed
+echo   [5/5] Done
 
 REM ── Done ────────────────────────────────────────────────────────────────────
 echo.
@@ -162,5 +170,9 @@ echo.
 
 :done
 echo.
+IF "%SETUP_FAILED%"=="1" (
+  echo   Setup did not complete successfully. See errors above.
+)
 echo   Press any key to close this window...
 pause >nul
+IF "%SETUP_FAILED%"=="1" EXIT /B 1

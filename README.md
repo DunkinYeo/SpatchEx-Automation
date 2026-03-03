@@ -91,6 +91,65 @@
 
 ---
 
+## Windows Quick Start (ZIP)
+
+ZIP 파일 기반으로 처음 세팅하는 경우 단계별 체크리스트:
+
+**Step 1 — ZIP 차단 해제 및 압축 해제**
+1. ZIP 우클릭 → **속성(Properties)** → 하단 **Unblock** 체크 → 확인
+2. ZIP 압축 해제 (바탕화면 등 경로에 한글/공백 없는 곳 권장)
+
+**Step 2 — 설치 실행**
+1. `install.bat` 더블클릭
+2. Python · Node.js · ADB가 없으면 winget으로 자동 설치됨
+3. 각 항목 설치 후 "CLOSE and RE-RUN" 메시지가 나오면 창 닫고 재실행
+
+**Step 3 — Appium 및 UiAutomator2 확인**
+
+`install.bat` 완료 후 CMD 창에서 확인:
+```cmd
+appium -v
+appium driver list
+```
+`uiautomator2 [installed]` 가 보여야 합니다. 없으면:
+```cmd
+appium driver install uiautomator2
+```
+
+**Step 4 — Appium 서버 시작**
+
+`start.bat` 을 실행하면 웹 UI가 자동으로 열립니다.
+CLI로 직접 실행하는 경우:
+```cmd
+appium --relaxed-security
+```
+별도 CMD 창에서 실행 후 유지하세요.
+
+**Step 5 — 테스트 실행**
+
+웹 UI 또는 CLI:
+```cmd
+.venv\Scripts\activate
+python main.py --config config\run.example.yaml
+```
+
+---
+
+## 문제 해결
+
+| 증상 | 해결 방법 |
+|------|-----------|
+| Windows에서 아무 창도 안 뜸 | ZIP 우클릭 → 속성 → Unblock 체크 후 재시도 |
+| "Python을 찾을 수 없다" 오류 | install.bat 재실행 (자동 설치됨) |
+| ADB 기기 인식 안 됨 | USB 디버깅 ON 확인, 케이블 재연결 |
+| 브라우저가 안 열림 | `http://127.0.0.1:5001` 직접 입력 |
+| `uiautomator2 [not installed]` | `appium driver install uiautomator2` 실행 |
+| `adb devices` 결과가 비어 있음 | 기기에서 USB 디버깅 ON → 케이블 재연결 → 팝업에서 "항상 허용" |
+| "Appium cannot create session" | Appium 서버 실행 중인지 확인, udid·app_package 설정 확인 |
+| logcat capture failed on Windows | adb가 PATH에 없는 경우 발생 — 동작에는 영향 없음 (best-effort) |
+
+---
+
 ## 개발자용 CLI 실행
 
 ```bash
