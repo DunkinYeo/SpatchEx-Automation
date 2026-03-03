@@ -14,25 +14,25 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 
 ## 사용 방법 (Web UI — 비개발자용)
 
-### 1. 최초 1회 설치 (아무것도 없는 환경)
+### 🚀 원클릭 설치 + 실행 (아무것도 없는 환경에서 바로 시작)
 
-| OS | 방법 |
-|----|------|
-| Mac | `install.sh` 더블클릭 (Python·Node·adb·Appium 자동 설치) |
-| Windows | `install.bat` 더블클릭 (동일) |
-
-> 설치 스크립트가 Python, Node.js, ADB, Appium, UiAutomator2 드라이버를 모두 자동으로 설치합니다.
-> 설치 시간: 약 5~15분 (인터넷 속도에 따라 다름)
-
-이미 Python·Appium이 설치된 환경이라면 수동으로:
+**Mac** — 터미널을 열고 아래 한 줄 붙여넣기:
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate.bat
-pip install -r requirements.txt
-appium driver install uiautomator2
+curl -fsSL https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.sh | bash
 ```
 
-### 2. 실행
+**Windows** — PowerShell을 **관리자 권한**으로 열고 아래 한 줄 붙여넣기:
+```powershell
+irm https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.ps1 | iex
+```
+
+> 실행하면 Python, Node.js, ADB, Appium 설치 → 코드 다운로드 → 웹 UI 자동 실행까지 한 번에 완료됩니다.
+> 설치 시간: 약 5~15분 (인터넷 속도에 따라 다름)
+
+---
+
+### 이미 설치한 경우 — 실행만 하기
+
 | OS | 방법 |
 |----|------|
 | Mac | `start.sh` 더블클릭 (또는 `./start.sh`) |
