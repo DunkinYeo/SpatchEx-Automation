@@ -1,27 +1,18 @@
-# spatch-longrun-automation
+# SpatchEx 장기 실행 테스트 자동화
 
-Long-running app test orchestrator for S-PATCH EX style apps (24/48/72h) with **scheduled symptom injection**.
-Android first (Appium + UiAutomator2). iOS stub included for later.
-
-## What this does (MVP)
-- Starts a measurement (handles online/offline consent path)
-- While test is running: injects symptoms every N hours (or by a plan)
-- Collects artifacts on every injection (screenshot + logcat)
-- Watchdog: retries, brings app to foreground, and attempts recovery
-- Outputs: `output/<run_id>/...` with JSONL event log + HTML summary
+24/48/72시간 ECG 측정 + 증상 자동 주입 오케스트레이터.
+Android (Appium + UiAutomator2) 기반. 비개발자도 ZIP 한 번으로 바로 사용 가능.
 
 ---
 
-## 사용 방법 (Web UI — 비개발자용)
+## 사용 방법 (비개발자용)
 
-### 🚀 원클릭 설치 + 실행
-
-#### 방법 1 — ZIP 파일 공유 (가장 간단, 채팅으로 전달 가능)
+### 1단계 — ZIP 받아서 실행
 
 **[⬇ ZIP 다운로드](https://github.com/DunkinYeo/SpatchEx-Automation/archive/refs/heads/main.zip)**
 
 1. ZIP 다운로드 → 압축 해제
-2. 폴더 안의 파일을 더블클릭:
+2. 폴더 안의 파일 더블클릭:
 
 | OS | 파일 |
 |----|------|
@@ -35,7 +26,7 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 >
 > 인터넷에서 다운로드한 파일은 macOS가 실행을 막습니다.
 >
-> **방법 A — 터미널 (가장 확실)**: 압축 해제한 폴더 안에서 터미널을 열고 아래 명령 실행 후 더블클릭:
+> **방법 A — 터미널 (가장 확실)**: 압축 해제한 폴더 안에서 터미널 열고 아래 명령 실행 후 더블클릭:
 > ```bash
 > xattr -cr .
 > ```
@@ -44,29 +35,7 @@ Android first (Appium + UiAutomator2). iOS stub included for later.
 
 ---
 
-#### 방법 2 — 터미널 한 줄 (터미널에 익숙한 경우)
-
-**Mac:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.sh | bash
-```
-**Windows** (PowerShell 관리자):
-```powershell
-irm https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.ps1 | iex
-```
-
----
-
-### 이미 설치한 경우 — 실행만 하기
-
-| OS | 파일 |
-|----|------|
-| Mac | `실행.command` 또는 `start.sh` 더블클릭 |
-| Windows | `실행.bat` 또는 `start.bat` 더블클릭 |
-
-브라우저가 자동으로 열리면 → 설정 후 **▶ 테스트 시작** 클릭
-
-### 3. 디바이스 연결 방법
+### 2단계 — 디바이스 연결
 
 #### USB 케이블 (기본)
 1. 개발자 옵션 활성화 (설정 → 빌드 번호 7번 탭)
@@ -80,12 +49,88 @@ irm https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstr
 3. 화면에 표시된 IP:포트와 코드 확인 후 아래 명령 실행:
    ```bash
    adb pair <IP>:<페어링포트>     # 예: adb pair 192.168.1.5:39517
-   # 코드 입력 후 "Successfully paired" 메시지 확인
    adb connect <IP>:<디버깅포트>  # 예: adb connect 192.168.1.5:42135
    ```
 4. `adb devices`로 연결 확인 → Web UI에서 자동 감지됨
 
 > ⚠️ PC와 폰이 **동일한 WiFi**에 연결되어 있어야 합니다.
+
+---
+
+### 3단계 — 웹 UI에서 테스트 시작
+
+브라우저가 자동으로 열리면:
+
+| 항목 | 설명 |
+|------|------|
+| 디바이스 | 연결된 기기 선택 |
+| 테스트 이름 | 결과 파일 구분용 (예: Alice_Round1) |
+| 측정 시간 | 24h / 48h / 72h |
+| 증상 주입 간격 | 4시간마다 등 |
+| 증상 선택 | 주입할 증상 체크 |
+| **팀 허브 URL** | 담당자가 알려준 주소 입력 (선택) |
+| **내 이름** | 허브 대시보드에서 구분할 이름 (선택) |
+
+설정 후 **▶ 테스트 시작** 클릭
+
+---
+
+## 팀 결과 모니터링 (관리자용)
+
+여러 팀원의 테스트 결과를 한 화면에서 실시간으로 확인할 수 있습니다.
+
+### 관리자가 할 일
+
+1. 본인 PC에서 서버 실행: `실행.command` (Mac) 또는 `실행.bat` (Windows)
+2. 브라우저에서 팀 대시보드 열기:
+   ```
+   http://localhost:5001/team
+   ```
+3. 본인 PC의 IP 주소를 팀원들에게 알려주기
+   (Mac 터미널: `ifconfig | grep "inet " | grep -v 127`)
+
+### 팀원이 할 일
+
+웹 UI 하단 두 칸 입력 후 테스트 시작:
+- **팀 허브 URL**: 관리자가 알려준 주소 (예: `http://192.168.0.4:5001`)
+- **내 이름**: 대시보드에서 구분할 이름 (예: 김철수)
+
+### 대시보드 화면
+
+```
+┌─────────────────────┐  ┌─────────────────────┐
+│ 김철수      실행중● │  │ 이영희        완료✓ │
+│ Pixel 7             │  │ Galaxy S23          │
+│ 증상 주입: 2회      │  │ 증상 주입: 6회      │
+│ 마지막: 14:32:05    │  │ 마지막: 15:01:22    │
+│ ─ 증상 주입 완료    │  │ ─ 테스트 완료       │
+└─────────────────────┘  └─────────────────────┘
+```
+
+> ⚠️ 관리자와 팀원이 **같은 WiFi(사내 네트워크)**에 있어야 합니다.
+> 허브 URL 미입력 시 테스트는 정상 동작하며 대시보드에만 전송되지 않습니다.
+
+---
+
+## 이미 설치한 경우 — 실행만 하기
+
+| OS | 파일 |
+|----|------|
+| Mac | `실행.command` 또는 `start.sh` |
+| Windows | `실행.bat` 또는 `start.bat` |
+
+---
+
+## 터미널 한 줄 설치 (터미널에 익숙한 경우)
+
+**Mac:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.sh | bash
+```
+**Windows** (PowerShell 관리자):
+```powershell
+irm https://raw.githubusercontent.com/DunkinYeo/SpatchEx-Automation/main/bootstrap.ps1 | iex
+```
 
 ---
 
@@ -105,24 +150,29 @@ cp config/run.example.yaml config/my-app.yaml
 # app_package, app_activity, udid, selectors 수정
 ```
 
+config에서 허브 연동 설정:
+```yaml
+hub:
+  enabled: true
+  url: "http://192.168.0.4:5001"  # 관리자 PC 주소
+  tester_name: "김철수"
+```
+
 ---
 
+## 출력 구조
+
+```
+output/<YYYYMMDD_HHMMSS>/
+  events.jsonl          # 이벤트 로그 (JSONL)
+  summary.html          # HTML 요약
+  inject_before_*.png   # 증상 주입 전 스크린샷
+  inject_logcat_*.txt   # logcat 스냅샷
+```
+
 ## Notes on selectors
-This project prefers **text/accessibility-id** selectors (no resource-id needed).
+
 Selectors support `str | list[str]` — list means "try each in order":
 ```yaml
 symptom_add_text: ["증상 추가", "Add Symptom"]  # Korean first, English fallback
 ```
-
-## Output structure
-```
-output/<YYYYMMDD_HHMMSS>/
-  events.jsonl          # machine-readable event log
-  report.html           # human-readable HTML summary
-  inject_before_*.png   # screenshots
-  inject_logcat_*.txt   # adb logcat snapshots
-```
-
----
-
-If you want, we can extend to multi-node (miniPC/RPi) orchestration and Slack notifications.
