@@ -21,5 +21,8 @@ echo.
 echo   Close this window to stop.
 echo.
 
+REM Open browser after a short delay so the server has time to start
+start "" cmd /c "timeout /t 3 /nobreak >nul & start http://127.0.0.1:5001"
+
 python web\app.py
 pause

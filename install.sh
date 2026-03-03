@@ -55,18 +55,17 @@ else
   ok "ADB already installed ($(adb --version | head -1))"
 fi
 
-# ── 5. Appium ─────────────────────────────────────────────────────────────────
-step "Checking Appium"
-if ! command -v appium &>/dev/null; then
-  npm install -g appium
-  ok "Appium installed"
+# ── 5. Appium (via npx — no global install needed) ────────────────────────────
+step "Checking Appium (first run downloads ~50 MB, subsequent runs use cache)"
+if npx -y appium@3 -v &>/dev/null; then
+  ok "Appium ready ($(npx -y appium@3 -v 2>/dev/null))"
 else
-  ok "Appium already installed ($(appium --version))"
+  err "Appium could not run via npx. Check your internet connection and Node.js installation."
 fi
 
 step "Checking Appium UiAutomator2 driver"
-if ! appium driver list --installed 2>&1 | grep -q "uiautomator2"; then
-  appium driver install uiautomator2
+if ! npx -y appium@3 driver list --installed 2>&1 | grep -q "uiautomator2"; then
+  npx -y appium@3 driver install uiautomator2
   ok "UiAutomator2 driver installed"
 else
   ok "UiAutomator2 driver already installed"

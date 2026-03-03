@@ -18,7 +18,8 @@
 2. ZIP 압축 해제
 
 3. **`install.bat`** 더블클릭
-   Python · Node.js · ADB · Appium 자동 설치 (10~20분 소요)
+   Python · Node.js · ADB · Appium 자동 설치
+   *(Appium 첫 실행 시 ~50MB 다운로드, 이후 캐시 사용)*
    *(중간에 설치가 안 된다는 오류가 나오면 화면의 안내 따라 수동 설치 후 재실행)*
 
 ### Mac
@@ -31,7 +32,8 @@
    ```
 
 3. **`run.command`** 더블클릭
-   Python · Node.js · ADB · Appium 자동 설치 (10~20분 소요)
+   Python · Node.js · ADB · Appium 자동 설치
+   *(Appium 첫 실행 시 ~50MB 다운로드, 이후 캐시 사용)*
 
 ---
 
@@ -108,12 +110,12 @@ ZIP 파일 기반으로 처음 세팅하는 경우 단계별 체크리스트:
 
 `install.bat` 완료 후 CMD 창에서 확인:
 ```cmd
-appium -v
-appium driver list
+npx -y appium@3 -v
+npx -y appium@3 driver list
 ```
 `uiautomator2 [installed]` 가 보여야 합니다. 없으면:
 ```cmd
-appium driver install uiautomator2
+npx -y appium@3 driver install uiautomator2
 ```
 
 **Step 4 — Appium 서버 시작**
@@ -121,7 +123,7 @@ appium driver install uiautomator2
 `start.bat` 을 실행하면 웹 UI가 자동으로 열립니다.
 CLI로 직접 실행하는 경우:
 ```cmd
-appium --relaxed-security
+npx -y appium@3 --relaxed-security
 ```
 별도 CMD 창에서 실행 후 유지하세요.
 
@@ -143,10 +145,11 @@ python main.py --config config\run.example.yaml
 | "Python을 찾을 수 없다" 오류 | install.bat 재실행 (자동 설치됨) |
 | ADB 기기 인식 안 됨 | USB 디버깅 ON 확인, 케이블 재연결 |
 | 브라우저가 안 열림 | `http://127.0.0.1:5001` 직접 입력 |
-| `uiautomator2 [not installed]` | `appium driver install uiautomator2` 실행 |
+| `uiautomator2 [not installed]` | `npx -y appium@3 driver install uiautomator2` 실행 |
 | `adb devices` 결과가 비어 있음 | 기기에서 USB 디버깅 ON → 케이블 재연결 → 팝업에서 "항상 허용" |
 | "Appium cannot create session" | Appium 서버 실행 중인지 확인, udid·app_package 설정 확인 |
 | logcat capture failed on Windows | adb가 PATH에 없는 경우 발생 — 동작에는 영향 없음 (best-effort) |
+| Appium 설치 후 바로 종료됨 | 이미 캐시됨 — 정상 동작. `npx -y appium@3 -v` 로 확인 |
 
 ---
 

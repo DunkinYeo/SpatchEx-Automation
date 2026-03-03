@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 if [ ! -d ".venv" ]; then
   echo ""
-  echo "  First run detected. Installing required tools (5-15 min)..."
+  echo "  First run detected. Installing required tools..."
   echo ""
   bash install.sh
 fi

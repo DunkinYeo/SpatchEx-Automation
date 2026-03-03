@@ -82,7 +82,7 @@ GOTO :done
 :adb_ok
 echo   OK  ADB ready
 
-REM ── 4. Appium ────────────────────────────────────────────────────────────────
+REM ── 4. Appium (via npx — no global install needed) ──────────────────────────
 echo.
 echo [4/5] Checking Appium...
 
@@ -96,33 +96,29 @@ IF ERRORLEVEL 1 (
   GOTO :done
 )
 
-REM Use appium -v (not --version) — Appium 3.x only supports -v
-appium -v >nul 2>&1
+REM Run Appium via npx (downloads ~50 MB on first run, uses cache afterward)
+echo   Verifying Appium via npx (first run downloads ~50 MB)...
+npx -y appium@3 -v >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :appium_ok
 
-echo   Appium not found. Installing via npm (3-5 min)...
-npm i --location=global appium
-SET APPIUM_ERR=%ERRORLEVEL%
-IF %APPIUM_ERR%==0 GOTO :appium_ok
 echo.
-echo   ERROR: npm i --location=global appium failed. (exit code %APPIUM_ERR%)
-echo   Please run install.bat as Administrator and retry.
+echo   ERROR: Appium could not run via npx. Check your internet connection.
 SET SETUP_FAILED=1
 GOTO :done
 
 :appium_ok
-FOR /F "tokens=*" %%i IN ('appium -v 2^>nul') DO echo   OK  Appium %%i
+FOR /F "tokens=*" %%i IN ('npx -y appium@3 -v 2^>nul') DO echo   OK  Appium %%i
 
 REM ── 5. UiAutomator2 driver ───────────────────────────────────────────────────
 echo.
 echo [5/5] Checking UiAutomator2 driver...
 SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
-appium driver list --installed > "%DRIVER_TMP%" 2>&1
+npx -y appium@3 driver list --installed > "%DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
 echo   UiAutomator2 not installed. Installing now...
-appium driver install uiautomator2
+npx -y appium@3 driver install uiautomator2
 SET UIA2_ERR=%ERRORLEVEL%
 IF %UIA2_ERR%==0 GOTO :uia2_ok
 echo.
@@ -134,7 +130,7 @@ GOTO :done
 :uia2_ok
 echo   OK  UiAutomator2 installed
 echo   Installed drivers:
-appium driver list
+npx -y appium@3 driver list
 
 REM ── Python virtual environment (post-setup) ──────────────────────────────────
 echo.
