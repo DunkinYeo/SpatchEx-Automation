@@ -25,21 +25,21 @@ _lock = threading.Lock()
 _hub_sessions: dict = {}   # tester_name → {events, last_seen, status, device}
 _hub_lock = threading.Lock()
 
-# ── Selectors embedded for spatch-ex (bilingual) ─────────────────────────────
+# ── Selectors for spatch-ex (English first, Korean fallback) ──────────────────
 SPATCH_EX_SELECTORS = {
     "start_now_text": "Start Now",
-    "consent_agree_text": ["동의", "Agree"],
-    "use_spatch_text": ["S-Patch 사용하기", "Use S-Patch"],
-    "duration_sheet_title": ["검사 기간을 선택해주세요", "Select a test period"],
-    "duration_24h_text": ["24 시간", "24 Hours"],
-    "duration_48h_text": ["48 시간", "48 Hours"],
-    "duration_72h_text": ["72 시간", "72 Hours"],
-    "confirm_text": ["확인", "Confirm", "OK"],
-    "offline_mode_text": ["오프라인", "Offline"],
-    "symptom_add_text": ["증상 추가", "Add Symptom"],
-    "symptom_picker_title": ["증상을 선택해주세요.", "Check your symptoms"],
+    "consent_agree_text": ["Agree", "동의"],
+    "use_spatch_text": ["Use S-Patch", "S-Patch 사용하기"],
+    "duration_sheet_title": ["Select a test period", "검사 기간을 선택해주세요"],
+    "duration_24h_text": ["24 Hours", "24 시간"],
+    "duration_48h_text": ["48 Hours", "48 시간"],
+    "duration_72h_text": ["72 Hours", "72 시간"],
+    "confirm_text": ["Confirm", "OK", "확인"],
+    "offline_mode_text": ["Offline", "오프라인"],
+    "symptom_add_text": ["Add Symptom", "증상 추가"],
+    "symptom_picker_title": ["Check your symptoms", "증상을 선택해주세요."],
     # symptom_confirm_text / symptom_done_text intentionally omitted
-    # → English app auto-closes picker; Korean app handled via optional check
+    # English app auto-closes picker; Korean app handled via optional check
 }
 
 
@@ -117,7 +117,7 @@ def api_appium_start():
         time.sleep(2.5)
         return jsonify({"ok": True, "running": appium_ok()})
     except FileNotFoundError:
-        return jsonify({"error": "appium 명령을 찾을 수 없습니다. Appium이 설치되어 있는지 확인하세요."}), 500
+        return jsonify({"error": "appium command not found. Please check that Appium is installed."}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -151,7 +151,7 @@ def api_status():
 def api_start():
     with _lock:
         if _state["proc"] and _state["proc"].poll() is None:
-            return jsonify({"error": "이미 실행 중입니다."}), 400
+            return jsonify({"error": "Already running."}), 400
 
         data = request.json or {}
         device = data.get("device", "")
@@ -296,6 +296,6 @@ if __name__ == "__main__":
     except Exception:
         local_ip = "127.0.0.1"
     threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:5001")).start()
-    print(f"\n  ✓ SpatchEx 테스트 UI (로컬)  → http://127.0.0.1:5001")
-    print(f"  ✓ 같은 네트워크에서 공유    → http://{local_ip}:5001\n")
+    print(f"\n  SpatchEx Test UI (local)   -> http://127.0.0.1:5001")
+    print(f"  Share on local network     -> http://{local_ip}:5001\n")
     app.run(host="0.0.0.0", port=5001, debug=False, threaded=True)

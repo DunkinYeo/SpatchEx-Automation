@@ -18,25 +18,25 @@ android:
 selectors:
   android:
     start_now_text: "Start Now"
-    consent_agree_text: ["동의", "Agree"]
-    use_spatch_text: ["S-Patch 사용하기", "Use S-Patch"]
-    duration_sheet_title: ["검사 기간을 선택해주세요", "Select a test period"]
-    duration_24h_text: ["24 시간", "24 Hours"]
-    duration_48h_text: ["48 시간", "48 Hours"]
-    duration_72h_text: ["72 시간", "72 Hours"]
-    confirm_text: ["확인", "Confirm", "OK"]
-    offline_mode_text: ["오프라인", "Offline"]
+    consent_agree_text: ["Agree", "동의"]
+    use_spatch_text: ["Use S-Patch", "S-Patch 사용하기"]
+    duration_sheet_title: ["Select a test period", "검사 기간을 선택해주세요"]
+    duration_24h_text: ["24 Hours", "24 시간"]
+    duration_48h_text: ["48 Hours", "48 시간"]
+    duration_72h_text: ["72 Hours", "72 시간"]
+    confirm_text: ["Confirm", "OK", "확인"]
+    offline_mode_text: ["Offline", "오프라인"]
     offline_checkbox_id: ""
-    offline_agree_text: ["동의합니다", "I agree"]
+    offline_agree_text: ["I agree", "동의합니다"]
     offline_confirm_text: ""
-    symptom_add_text: ["증상 추가", "Add Symptom"]
-    symptom_picker_title: ["증상을 선택해주세요.", "Check your symptoms"]
-    # symptom_confirm_text: not set → English app auto-closes picker
-    # symptom_done_text: not set → English app skips journal screen
+    symptom_add_text: ["Add Symptom", "증상 추가"]
+    symptom_picker_title: ["Check your symptoms", "증상을 선택해주세요."]
+    # symptom_confirm_text: not set -> English app auto-closes picker
+    # symptom_done_text: not set -> English app skips journal screen
     other_text_field_id: ""
-    keyboard_done_text: ["완료", "Done"]
-    add_activity_text: ["활동 추가", "Add Activity"]
-    activity_submit_text: ["활동 추가", "Add Activity"]
+    keyboard_done_text: ["Done", "완료"]
+    add_activity_text: ["Add Activity", "활동 추가"]
+    activity_submit_text: ["Add Activity", "활동 추가"]
 
 symptom_plan: []
 

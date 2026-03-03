@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# SpatchEx — Mac 실행 파일
-# 더블클릭하면 터미널이 열리며 자동으로 설치 후 시작됩니다.
+# SpatchEx -- Mac launcher (double-click to run)
 cd "$(dirname "$0")"
 
 if [ ! -d ".venv" ]; then
   echo ""
-  echo "  처음 실행입니다. 필요한 도구를 설치합니다 (5~15분 소요)..."
+  echo "  First run detected. Installing required tools (5-15 min)..."
   echo ""
   bash install.sh
 fi

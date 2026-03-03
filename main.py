@@ -79,7 +79,7 @@ def main():
             other_text = payload.get("other_text") or ""
             activities = payload.get("activities") or []
             if not symptoms:
-                pick = random.choice(catalog) if catalog else "두근거림"
+                pick = random.choice(catalog) if catalog else "Palpitations"
                 symptoms = [pick]
             inject_symptom_event(
                 driver,

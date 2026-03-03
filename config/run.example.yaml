@@ -19,84 +19,83 @@ selectors:
   android:
     # ── Measurement start ─────────────────────────────────────────────
     start_now_text: "Start Now"
-    consent_agree_text: "동의"
-    use_spatch_text: "S-Patch 사용하기"
-    duration_sheet_title: "검사 기간을 선택해주세요"
-    duration_24h_text: "24 시간"
-    duration_48h_text: "48 시간"
-    duration_72h_text: "72 시간"
-    confirm_text: "확인"
+    consent_agree_text: "Agree"
+    use_spatch_text: "Use S-Patch"
+    duration_sheet_title: "Select a test period"
+    duration_24h_text: "24 Hours"
+    duration_48h_text: "48 Hours"
+    duration_72h_text: "72 Hours"
+    confirm_text: "Confirm"
 
     # ── Offline mode (leave blank if your app has no offline path) ────
-    offline_mode_text: "오프라인"          # text/badge that indicates offline state
+    offline_mode_text: "Offline"          # text/badge that indicates offline state
     offline_checkbox_id: ""               # resource-id of the consent checkbox
-    offline_agree_text: "동의합니다"       # fallback text if no resource-id
+    offline_agree_text: "I Agree"         # fallback text if no resource-id
     offline_confirm_text: ""              # separate confirm button (if any)
 
     # ── Running screen ────────────────────────────────────────────────
-    symptom_add_text: "증상 추가"          # button on the main ECG screen
+    symptom_add_text: "Add Symptom"       # button on the main ECG screen
 
     # ── Symptom picker ────────────────────────────────────────────────
-    symptom_picker_title: "증상을 선택해주세요."
-    symptom_confirm_text: "증상 추가"      # submit button inside the picker
-    symptom_done_text: "환자일지 등록"     # final journal registration button
-    symptom_success_signal_text: "등록되었습니다"  # critical: confirm symptom was saved
-                                                    # (e.g., toast/dialog message after submission)
+    symptom_picker_title: "Check your symptoms"
+    symptom_confirm_text: ""              # submit button inside picker (leave blank if auto-closes)
+    symptom_done_text: ""                 # final journal button (leave blank if not present)
+    symptom_success_signal_text: ""       # toast/dialog confirming symptom was saved
 
-    # ── 기타 (free-text) input ────────────────────────────────────────
+    # ── Other (free-text) input ───────────────────────────────────────
     other_text_field_id: ""              # resource-id of the EditText (preferred)
-    keyboard_done_text: "완료"           # IME action button label to dismiss keyboard
+    keyboard_done_text: "Done"           # IME action button label to dismiss keyboard
 
     # ── Activity picker ───────────────────────────────────────────────
-    add_activity_text: "활동 추가"
-    activity_submit_text: "활동 추가"
+    add_activity_text: "Add Activity"
+    activity_submit_text: "Add Activity"
 
 # symptom_plan: exact hour offsets.  Leave empty to use interval + catalog.
 symptom_plan:
   - at_hour: 4
-    symptoms: ["두근거림"]
+    symptoms: ["Palpitations"]
     other_text: ""
     activities: []
   - at_hour: 8
-    symptoms: ["가슴 통증"]
+    symptoms: ["Chest Pain"]
     other_text: "mild after walking"
-    activities: ["걷기"]
+    activities: ["Walking"]
 
 symptom_catalog:
-  - "두근거림"
-  - "가슴 통증"
-  - "어지러움"
-  - "호흡 가쁨"
-  - "의식상실"
-  - "복시/흐림"
-  - "현기증"
-  - "일어나자마자 어지러움"
-  - "팔, 목, 어깨 등이 불편함"
-  - "기타"
+  - "Chest Pain"
+  - "Palpitations"
+  - "Dizziness"
+  - "Short Breath"
+  - "Loss of Consciousness"
+  - "Blurred Vision"
+  - "Vertigo"
+  - "Dizziness on Standing"
+  - "Arm/Neck/Shoulder Discomfort"
+  - "Other"
 
 activity_catalog:
-  - "업무, 컴퓨터 사용 등 비육체적 활동"
-  - "TV 시청, 독서 등 차분한 활동"
-  - "걷기"
-  - "천천히 뛰기"
-  - "빠르게 뛰기"
-  - "수영"
-  - "격한 운동"
-  - "오랜 부부싸움"
-  - "수면"
-  - "식사"
-  - "커피 등 카페인 섭취"
-  - "음주"
+  - "Desk work / computer use"
+  - "Watching TV / reading"
+  - "Walking"
+  - "Light jogging"
+  - "Running"
+  - "Swimming"
+  - "Intense exercise"
+  - "Argument / stress"
+  - "Sleeping"
+  - "Eating"
+  - "Caffeine intake"
+  - "Alcohol intake"
 
 slack:
   enabled: false
   webhook_url: ""
   mention: ""
 
-# ── Hub (team dashboard) ───────────────────────────────────────────────────────
-# 테스트 관리자의 PC에서 실행 중인 허브 서버 주소를 입력하면
-# 이 PC의 테스트 결과가 관리자 대시보드(/team)에 실시간으로 전송됩니다.
+# ── Hub (team dashboard) ──────────────────────────────────────────────────────
+# Enter the hub server URL (manager's PC) to send test results to the team
+# dashboard in real time (/team page on the manager's machine).
 hub:
   enabled: false
-  url: ""          # 예: http://192.168.1.100:5001
-  tester_name: ""  # 허브에서 구분할 이름 (예: 팀원A)
+  url: ""          # e.g. http://192.168.1.100:5001
+  tester_name: ""  # name shown on the dashboard (e.g. Alice)

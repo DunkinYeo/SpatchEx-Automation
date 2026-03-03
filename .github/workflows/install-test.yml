@@ -8,16 +8,16 @@ on:
       - 'install.bat'
       - 'bootstrap.sh'
       - 'bootstrap.ps1'
-      - '실행.command'
-      - '실행.bat'
+      - 'run.command'
+      - 'run.bat'
       - 'requirements.txt'
       - '.github/workflows/install-test.yml'
   pull_request:
     branches: [main]
-  workflow_dispatch:  # 수동 실행 가능
+  workflow_dispatch:
 
 jobs:
-  # ── macOS — install.sh + start 직전까지 ──────────────────────────────────
+  # ── macOS — install.sh + verify ──────────────────────────────────────────
   test-mac:
     name: "Mac — install.sh"
     runs-on: macos-latest
@@ -46,7 +46,7 @@ jobs:
           source .venv/bin/activate
           python -c "import sys; sys.path.insert(0,''); from web.app import app; print('✓ web app OK')"
 
-  # ── Windows — install.bat (Python·Node·Appium 검증) ──────────────────────
+  # ── Windows — install.bat (Python / Node / Appium verify) ───────────────
   test-windows:
     name: "Windows — install.bat"
     runs-on: windows-latest

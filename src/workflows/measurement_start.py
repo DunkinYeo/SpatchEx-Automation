@@ -2,13 +2,13 @@
 Best-effort, idempotent measurement start flow.
 
 Supported paths:
-  A) Already running      → '증상 추가' visible → return immediately
-  B) Home screen          → 'Start Now' → consent → S-Patch 사용하기 → duration → 확인
+  A) Already running      → 'Add Symptom' visible → return immediately
+  B) Home screen          → 'Start Now' → consent → 'Use S-Patch' → duration → 'Confirm'
   C) Offline mode         → offline notice visible → check consent checkbox
-                            → S-Patch 사용하기 → duration → 확인
+                            → 'Use S-Patch' → duration → 'Confirm'
 
 Offline detection:
-  The YAML key `offline_mode_text` (default: "오프라인") is checked first.
+  The YAML key `offline_mode_text` (default: "Offline") is checked first.
   If visible, the offline consent checkbox is ticked before proceeding.
 """
 
@@ -25,7 +25,7 @@ def ensure_measurement_started(d: AndroidDriver):
     d.wait_idle(1.5)
 
     # ── A. Already running? ───────────────────────────────────────────
-    symptom_btn = d.sel.get("symptom_add_text", "증상 추가")
+    symptom_btn = d.sel.get("symptom_add_text", "Add Symptom")
     if d.is_visible_text(symptom_btn):
         d.reporter.log_event("measurement_already_running", {})
         return
@@ -38,26 +38,26 @@ def ensure_measurement_started(d: AndroidDriver):
         d.wait_idle(2.0)
 
     # ── Consent screen ────────────────────────────────────────────────
-    agree = d.sel.get("consent_agree_text", "동의")
+    agree = d.sel.get("consent_agree_text", "Agree")
     if d.is_visible_text(agree):
         d.tap_text(agree)
 
     # ── Offline branch ────────────────────────────────────────────────
-    offline_text = d.sel.get("offline_mode_text", "오프라인")
+    offline_text = d.sel.get("offline_mode_text", "Offline")
     if d.is_visible_text(offline_text):
         d.reporter.log_event("offline_mode_detected", {})
         _handle_offline_consent(d)
 
-    # ── "S-Patch 사용하기" ─────────────────────────────────────────────
-    use_text = d.sel.get("use_spatch_text", "S-Patch 사용하기")
+    # ── "Use S-Patch" button ──────────────────────────────────────────
+    use_text = d.sel.get("use_spatch_text", "Use S-Patch")
     if d.is_visible_text(use_text):
         d.tap_text(use_text)
 
     # ── Duration sheet ────────────────────────────────────────────────
-    sheet_title = d.sel.get("duration_sheet_title", "검사 기간을 선택해주세요")
+    sheet_title = d.sel.get("duration_sheet_title", "Select a test period")
     if d.is_visible_text(sheet_title):
         _select_duration(d)
-        confirm = d.sel.get("confirm_text", "확인")
+        confirm = d.sel.get("confirm_text", "Confirm")
         if d.is_visible_text(confirm):
             d.tap_text(confirm, contains=False)
 
@@ -98,7 +98,7 @@ def _handle_offline_consent(d: AndroidDriver):
             pass
 
     # Fallback: tap the consent text area (some apps use a toggle row)
-    offline_agree = d.sel.get("offline_agree_text", "동의합니다")
+    offline_agree = d.sel.get("offline_agree_text", "I Agree")
     if d.is_visible_text(offline_agree):
         d.tap_text(offline_agree, contains=True)
 

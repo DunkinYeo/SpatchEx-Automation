@@ -2,7 +2,7 @@
 Inject a symptom event while the measurement is running.
 
 Artifact policy (every injection):
-  - screenshot  before tapping '증상 추가'
+  - screenshot  before tapping 'Add Symptom'
   - screenshot  after  symptom picker closes
   - screenshot  after  journal submission
   - adb logcat  after  submission
@@ -49,7 +49,7 @@ def inject_symptom_event(
         last_step = "before_screenshot"
 
         # ── 3. Open symptom picker ────────────────────────────────────
-        symptom_add = d.sel.get("symptom_add_text", "증상 추가")
+        symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
         d.tap_text(symptom_add, timeout=15, contains=True)
         d.screenshot("symptom_picker_open")
         last_step = "picker_open"
@@ -59,7 +59,7 @@ def inject_symptom_event(
             d.tap_text(s, timeout=10, contains=True)
         last_step = "symptoms_selected"
 
-        # ── 5. Handle '기타' free-text input ──────────────────────────
+        # ── 5. Handle 'Other' free-text input ────────────────────────
         if other_text:
             _enter_other_text(d, other_text)
             last_step = "other_text_entered"
@@ -146,15 +146,15 @@ def inject_symptom_event(
 
 def _enter_other_text(d: AndroidDriver, text: str):
     """
-    Tap the '기타' input field and type free text.
-    Selector priority: other_text_field_id (resource-id) > '기타' text tile.
+    Tap the 'Other' input field and type free text.
+    Selector priority: other_text_field_id (resource-id) > 'Other' text tile.
     """
     field_id = d.sel.get("other_text_field_id")
     if field_id:
         el = d.find(field_id, timeout=5, contains=False)
     else:
-        # Fall back: tap the '기타' tile which opens the text input
-        d.tap_text("기타", timeout=5, contains=True)
+        # Fall back: tap the 'Other' tile which opens the text input
+        d.tap_text("Other", timeout=5, contains=True)
         # Then try to find any visible EditText
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
@@ -168,7 +168,7 @@ def _enter_other_text(d: AndroidDriver, text: str):
     el.send_keys(text)
 
     # Dismiss keyboard
-    keyboard_done = d.sel.get("keyboard_done_text", "완료")
+    keyboard_done = d.sel.get("keyboard_done_text", "Done")
     if d.is_visible_text(keyboard_done):
         d.tap_text(keyboard_done, timeout=3, contains=False)
     else:
@@ -179,7 +179,7 @@ def _enter_other_text(d: AndroidDriver, text: str):
 
 
 def _add_activities(d: AndroidDriver, activities: list[str]):
-    add_act = d.sel.get("add_activity_text", "활동 추가")
+    add_act = d.sel.get("add_activity_text", "Add Activity")
     if not d.is_visible_text(add_act):
         return
 
@@ -188,7 +188,7 @@ def _add_activities(d: AndroidDriver, activities: list[str]):
     for a in activities:
         d.tap_text(a, timeout=10, contains=True)
 
-    act_submit = d.sel.get("activity_submit_text", "활동 추가")
+    act_submit = d.sel.get("activity_submit_text", "Add Activity")
     if d.is_visible_text(act_submit):
         d.tap_text(act_submit, timeout=10, contains=True)
 
