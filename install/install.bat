@@ -146,14 +146,14 @@ SET APPIUM_RUN=
 REM 4a. Check %APPDATA%\npm\appium.cmd (most reliable on Windows)
 IF NOT EXIST "%APPIUM_CMD%" GOTO :chk_path_appium
 echo   Found: %APPIUM_CMD% >> "%LOG%"
-"%APPIUM_CMD%" -v >nul 2>&1
+call "%APPIUM_CMD%" -v >nul 2>&1
 IF ERRORLEVEL 1 GOTO :chk_path_appium
 SET APPIUM_RUN=appium
 GOTO :appium_found
 
 REM 4b. Check PATH-based appium
 :chk_path_appium
-appium -v >nul 2>&1
+call appium -v >nul 2>&1
 IF ERRORLEVEL 1 GOTO :appium_install
 SET APPIUM_RUN=appium
 GOTO :appium_found
@@ -163,21 +163,21 @@ REM 4c. Install globally via npm (output on console — not redirected to log)
 echo   Not found. Installing via npm (this can take a few minutes)...
 echo npm i --location=global appium >> "%LOG%"
 IF EXIST "%NPM_CMD%" (
-  "%NPM_CMD%" i --location=global appium
+  call "%NPM_CMD%" i --location=global appium
 ) ELSE (
-  npm i --location=global appium
+  call npm i --location=global appium
 )
 echo npm exit=%ERRORLEVEL% >> "%LOG%"
 
 REM 4d. Re-check after npm install (explicit path first, then PATH)
 IF NOT EXIST "%APPIUM_CMD%" GOTO :rechk_path
-"%APPIUM_CMD%" -v >nul 2>&1
+call "%APPIUM_CMD%" -v >nul 2>&1
 IF ERRORLEVEL 1 GOTO :rechk_path
 SET APPIUM_RUN=appium
 GOTO :appium_found
 
 :rechk_path
-appium -v >nul 2>&1
+call appium -v >nul 2>&1
 IF ERRORLEVEL 1 GOTO :appium_npx
 SET APPIUM_RUN=appium
 GOTO :appium_found
@@ -187,7 +187,7 @@ REM 4e. npx fallback (console output shown — first run downloads appium, ~1 mi
 echo   Global install unavailable. Trying npx fallback...
 echo   (First run downloads appium — please wait, do not close this window)
 SET "APPIUM_RUN=npx -y appium@3"
-npx -y appium@3 -v
+call npx -y appium@3 -v
 IF ERRORLEVEL 1 GOTO :appium_fail
 echo   OK  Appium ready (via npx)
 GOTO :step4_done
@@ -201,7 +201,7 @@ SET SETUP_FAILED=1
 GOTO :done_tail
 
 :appium_found
-appium -v
+call appium -v
 :step4_done
 echo [4/6] APPIUM_RUN=%APPIUM_RUN% >> "%LOG%"
 
@@ -221,7 +221,7 @@ IF "%APPIUM_RUN%"=="" GOTO :uia2_no_appium
 SET "DRIVER_TMP=%TEMP%\appium_drivers_%_TS%.txt"
 
 echo   Checking installed drivers...
-%APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
+call %APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
 type "%DRIVER_TMP%"
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF ERRORLEVEL 1 GOTO :uia2_install
@@ -229,7 +229,7 @@ GOTO :uia2_ok
 
 :uia2_install
 echo   Not installed. Installing uiautomator2 (this can take a few minutes)...
-%APPIUM_RUN% driver install uiautomator2
+call %APPIUM_RUN% driver install uiautomator2
 SET UIA2_ERR=%ERRORLEVEL%
 echo driver install uiautomator2 exit=%UIA2_ERR% >> "%LOG%"
 IF ERRORLEVEL 1 GOTO :uia2_fail
