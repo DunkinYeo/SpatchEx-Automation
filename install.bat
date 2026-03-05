@@ -7,6 +7,8 @@ EXIT /B
 
 :run
 cd /d "%~dp0"
+SET LOG=install_debug.log
+echo SpatchEx install started: %DATE% %TIME% > "%LOG%"
 
 echo.
 echo   +--------------------------------------------------+
@@ -91,20 +93,47 @@ echo [4/5] Checking Appium...
 REM Ensure Node.js and npm global bin are always in PATH
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
+REM ── Diagnostic block (written to log only) ───────────────────────────────────
+echo. >> "%LOG%"
+echo === [4/5] Appium Diagnostics: %DATE% %TIME% === >> "%LOG%"
+echo PATH=%PATH% >> "%LOG%"
+echo --- where node --- >> "%LOG%"
+where node >> "%LOG%" 2>&1
+echo --- where npm --- >> "%LOG%"
+where npm >> "%LOG%" 2>&1
+echo --- npm -v --- >> "%LOG%"
+npm -v >> "%LOG%" 2>&1
+echo --- where npx --- >> "%LOG%"
+where npx >> "%LOG%" 2>&1
+echo --- npx -v --- >> "%LOG%"
+npx -v >> "%LOG%" 2>&1
+echo --- where appium (global) --- >> "%LOG%"
+where appium >> "%LOG%" 2>&1
+echo --- appium -v (global) --- >> "%LOG%"
+appium -v >> "%LOG%" 2>&1
+echo --- npm config get registry --- >> "%LOG%"
+npm config get registry >> "%LOG%" 2>&1
+echo --- npm ping --- >> "%LOG%"
+npm ping >> "%LOG%" 2>&1
+echo --- npx -y appium@3 -v --- >> "%LOG%"
+
 REM Verify npm is available before trying to install
 npm --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :npm_ok
-echo   ERROR: npm not found. Please close and re-run install.bat
+echo   FAIL: npm not found. Please close and re-run install.bat
+echo FAIL: npm not found >> "%LOG%"
 GOTO :done
 :npm_ok
 
-REM Run Appium via npx (downloads ~50 MB on first run, uses cache afterward)
+REM Run Appium via npx; output captured to log (downloads ~50 MB on first run)
 echo   Verifying Appium via npx (first run downloads ~50 MB)...
-npx -y appium@3 -v >nul 2>&1
+npx -y appium@3 -v >> "%LOG%" 2>&1
 IF NOT ERRORLEVEL 1 GOTO :appium_ok
 
 echo.
-echo   ERROR: Appium could not run via npx. Check your internet connection.
+echo   FAIL: npx -y appium@3 -v failed. Check internet connection.
+echo   See %LOG% for details.
+echo FAIL: npx -y appium@3 -v returned non-zero at %DATE% %TIME% >> "%LOG%"
 SET SETUP_FAILED=1
 GOTO :done
 
@@ -167,10 +196,12 @@ echo   2. Double-click start.bat -^> browser opens automatically
 echo.
 
 :done
+echo SpatchEx install ended: %DATE% %TIME% >> "%LOG%"
 echo.
 IF "%SETUP_FAILED%"=="1" (
   echo   Setup did not complete successfully. See errors above.
 )
+echo   Debug log: %LOG%
 echo   Press any key to close this window...
 pause >nul
 IF "%SETUP_FAILED%"=="1" EXIT /B 1
