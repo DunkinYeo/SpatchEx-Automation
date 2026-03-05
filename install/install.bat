@@ -1,5 +1,8 @@
 @echo off
-REM Keep window open always — re-launch inside cmd /k if not already
+REM ============================================================
+REM SpatchEx Long-Run Test -- Windows Setup
+REM ============================================================
+REM Keep window open: re-launch inside cmd /k on direct double-click
 IF "%SPATCHEX_RUNNING%"=="1" GOTO :run
 SET SPATCHEX_RUNNING=1
 cmd /k "%~f0"
@@ -7,208 +10,274 @@ EXIT /B
 
 :run
 cd /d "%~dp0.."
-SET LOG=install_debug.log
-echo SpatchEx install started: %DATE% %TIME% > "%LOG%"
 
+REM ── Timestamped log in TEMP (keeps install dir clean) ───────
+FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
+SET "LOG=%TEMP%\spatch_install_%_TS%.log"
+echo SpatchEx install started %DATE% %TIME% > "%LOG%"
+
+REM ── Strong PATH: always include Node.js + npm global bin ────
+SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
+SET "NPM_CMD=%ProgramFiles%\nodejs\npm.cmd"
+SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
+
+SET SETUP_FAILED=0
+SET APPIUM_RUN=
+
+REM ── Banner ──────────────────────────────────────────────────
 echo.
-echo   +--------------------------------------------------+
-echo   ^|  SpatchEx Long-Run Test -- Setup                ^|
-echo   +--------------------------------------------------+
+echo   +====================================================+
+echo   ^|   SpatchEx Long-Run Test -- Windows Setup         ^|
+echo   +====================================================+
 echo.
-echo   First run may download required tools (a few minutes).
-echo   If you see "CLOSE and RE-RUN", close this window and run again.
+echo   Log: %LOG%
 echo.
 
-REM ── 1. Python ────────────────────────────────────────────────────────────────
-echo [1/5] Checking Python...
+REM ============================================================
+echo [1/6] Python...
+echo [1/6] Python >> "%LOG%"
 python --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :python_ok
 
-echo   Python not found. Installing via winget...
-winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+echo   Not found. Installing Python 3.12 via winget...
+winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements >> "%LOG%" 2>&1
 IF NOT ERRORLEVEL 1 GOTO :python_rerun
 echo.
 echo   ERROR: Could not auto-install Python.
-echo   Please install manually: https://www.python.org/downloads/
-echo   IMPORTANT: check "Add Python to PATH" during install
+echo   Install manually: https://www.python.org/downloads/
+echo   IMPORTANT: Check "Add Python to PATH" during install.
 start https://www.python.org/downloads/
+SET SETUP_FAILED=1
 GOTO :done
 
 :python_rerun
-echo   Python installed. Please CLOSE and RE-RUN install.bat
+echo   Installed. CLOSE this window and RE-RUN install.bat.
 GOTO :done
 
 :python_ok
-FOR /F "tokens=*" %%i IN ('python --version') DO echo   OK  %%i
+FOR /F "tokens=*" %%v IN ('python --version 2^>^&1') DO echo   OK  %%v
+echo [1/6] OK >> "%LOG%"
 
-REM ── 2. Node.js ───────────────────────────────────────────────────────────────
+REM ============================================================
 echo.
-echo [2/5] Checking Node.js...
+echo [2/6] Node.js / npm...
+echo [2/6] Node.js >> "%LOG%"
 node --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :node_ok
 
-echo   Node.js not found. Installing via winget...
-winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+echo   Not found. Installing Node.js LTS via winget...
+winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements >> "%LOG%" 2>&1
 IF NOT ERRORLEVEL 1 GOTO :node_rerun
 echo.
 echo   ERROR: Could not auto-install Node.js.
-echo   Please install manually: https://nodejs.org/
+echo   Install manually: https://nodejs.org/
 start https://nodejs.org/
+SET SETUP_FAILED=1
 GOTO :done
 
 :node_rerun
-echo   Node.js installed. Please CLOSE and RE-RUN install.bat
+echo   Installed. CLOSE this window and RE-RUN install.bat.
 GOTO :done
 
 :node_ok
-FOR /F "tokens=*" %%i IN ('node --version') DO echo   OK  Node.js %%i
+FOR /F "tokens=*" %%v IN ('node --version 2^>^&1') DO echo   OK  Node.js %%v
 
-REM ── 3. ADB ───────────────────────────────────────────────────────────────────
+REM Verify npm is reachable (explicit path or PATH-based)
+IF EXIST "%NPM_CMD%" GOTO :npm_ok
+npm --version >nul 2>&1
+IF NOT ERRORLEVEL 1 GOTO :npm_ok
+echo   ERROR: npm not found after Node.js install. Close and re-run.
+SET SETUP_FAILED=1
+GOTO :done
+
+:npm_ok
+echo [2/6] OK >> "%LOG%"
+
+REM ============================================================
 echo.
-echo [3/5] Checking ADB...
+echo [3/6] ADB (Android Debug Bridge)...
+echo [3/6] ADB >> "%LOG%"
 adb --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :adb_ok
 
-echo   ADB not found. Installing Android Platform Tools (winget)...
-winget install -e --id Google.PlatformTools --accept-package-agreements --accept-source-agreements
+echo   Not found. Installing Android Platform Tools via winget...
+winget install -e --id Google.PlatformTools --accept-package-agreements --accept-source-agreements >> "%LOG%" 2>&1
 IF NOT ERRORLEVEL 1 GOTO :adb_rerun
 echo.
 echo   ERROR: Could not auto-install ADB.
-echo   Please install manually:
-echo   https://developer.android.com/tools/releases/platform-tools
+echo   Install manually: https://developer.android.com/tools/releases/platform-tools
 start https://developer.android.com/tools/releases/platform-tools
+SET SETUP_FAILED=1
 GOTO :done
 
 :adb_rerun
-echo   ADB installed. Please CLOSE and RE-RUN install.bat
+echo   Installed. CLOSE this window and RE-RUN install.bat.
 GOTO :done
 
 :adb_ok
 echo   OK  ADB ready
+echo [3/6] OK >> "%LOG%"
 
-REM ── 4. Appium ─────────────────────────────────────────────────────────────────
+REM ============================================================
 echo.
-echo [4/5] Checking Appium...
-
-REM Ensure Node.js and npm global bin are always in PATH
-SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
-
-REM Diagnostic info to log (console stays clean)
-echo. >> "%LOG%"
-echo === [4/5] Appium Diagnostics: %DATE% %TIME% === >> "%LOG%"
-echo PATH=%PATH% >> "%LOG%"
-where node >> "%LOG%" 2>&1
-where npm >> "%LOG%" 2>&1
-npm -v >> "%LOG%" 2>&1
-where npx >> "%LOG%" 2>&1
+echo [4/6] Appium...
+echo [4/6] Appium diagnostics >> "%LOG%"
+echo   PATH=%PATH% >> "%LOG%"
+where node  >> "%LOG%" 2>&1
+where npm   >> "%LOG%" 2>&1
 where appium >> "%LOG%" 2>&1
-appium -v >> "%LOG%" 2>&1
-npm config get registry >> "%LOG%" 2>&1
+IF EXIST "%APPIUM_CMD%" echo   APPIUM_CMD exists: %APPIUM_CMD% >> "%LOG%"
 
-REM Verify npm is available
-npm --version >nul 2>&1
-IF NOT ERRORLEVEL 1 GOTO :npm_ok
-echo   FAIL: npm not found. Close and re-run install.bat
-echo FAIL: npm not found >> "%LOG%"
-GOTO :done
-:npm_ok
+REM 4a. Explicit path: %APPDATA%\npm\appium.cmd
+IF EXIST "%APPIUM_CMD%" (
+  "%APPIUM_CMD%" -v >nul 2>&1
+  IF NOT ERRORLEVEL 1 SET "APPIUM_RUN=%APPIUM_CMD%"
+)
+IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
 
-REM 4a. Use global Appium if already installed (instant, no download needed)
-SET APPIUM_RUN=appium
+REM 4b. PATH-based appium
 appium -v >nul 2>&1
-IF NOT ERRORLEVEL 1 GOTO :appium_global_found
+IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
+IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
 
-REM 4b. Global Appium missing — install via npm (shows live progress on console)
-echo   Appium not found. Installing globally via npm...
-npm i -g appium
+REM 4c. Not installed — install globally (shows live progress on console)
+echo   Not found. Installing globally (this can take a few minutes)...
+echo npm i --location=global appium started >> "%LOG%"
+IF EXIST "%NPM_CMD%" (
+  "%NPM_CMD%" i --location=global appium
+) ELSE (
+  npm i --location=global appium
+)
 SET NPM_ERR=%ERRORLEVEL%
-IF %NPM_ERR%==0 GOTO :appium_global_found
-echo   npm install failed (exit %NPM_ERR%). Trying npx fallback...
-echo npm i -g appium failed (exit %NPM_ERR%) >> "%LOG%"
+echo npm i -g appium exit=%NPM_ERR% >> "%LOG%"
 
-REM 4c. npx fallback — explicit console message so user knows it is not frozen
-SET APPIUM_RUN=npx -y appium@3
-echo   Running Appium via npx (may take a minute on first run)...
+IF %NPM_ERR% NEQ 0 GOTO :appium_npm_failed
+
+REM 4d. Verify after install
+IF EXIST "%APPIUM_CMD%" (
+  "%APPIUM_CMD%" -v >nul 2>&1
+  IF NOT ERRORLEVEL 1 SET "APPIUM_RUN=%APPIUM_CMD%"
+)
+IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
+appium -v >nul 2>&1
+IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
+IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
+
+REM npm "succeeded" but still not runnable — fall through to npx
+:appium_npm_failed
+echo   Global install failed or appium not runnable. Trying npx fallback...
+echo npx fallback triggered >> "%LOG%"
+SET "APPIUM_RUN=npx -y appium@3"
+echo   (first run may take a minute to cache appium)
 npx -y appium@3 -v >> "%LOG%" 2>&1
-IF NOT ERRORLEVEL 1 GOTO :appium_npx_found
+IF NOT ERRORLEVEL 1 GOTO :appium_npx_ok
 
 echo.
-echo   FAIL: Appium could not start. Check internet and see %LOG%
-echo FAIL: all Appium checks failed at %DATE% %TIME% >> "%LOG%"
+echo   ERROR: Appium could not be started.
+echo   See log: %LOG%
+echo FAIL: all Appium strategies failed >> "%LOG%"
 SET SETUP_FAILED=1
-GOTO :done
+GOTO :done_tail
 
-:appium_global_found
-FOR /F "tokens=*" %%i IN ('appium -v 2^>nul') DO echo   OK  Appium %%i
+:appium_found
+FOR /F "tokens=*" %%v IN ('%APPIUM_RUN% -v 2^>nul') DO echo   OK  Appium %%v
 GOTO :appium_ok
 
-:appium_npx_found
-echo   OK  Appium (via npx)
+:appium_npx_ok
+echo   OK  Appium ready (via npx)
 
 :appium_ok
+echo [4/6] Appium: %APPIUM_RUN% >> "%LOG%"
 
-REM ── 5. UiAutomator2 driver ───────────────────────────────────────────────────
+REM ============================================================
 echo.
-echo [5/5] Checking UiAutomator2 driver...
-SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
+echo [5/6] UiAutomator2 driver...
+echo [5/6] UiAutomator2 >> "%LOG%"
+SET "DRIVER_TMP=%TEMP%\appium_drivers_%_TS%.txt"
 %APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
-echo   UiAutomator2 not installed. Installing now...
+echo   Not installed. Installing (this can take a few minutes)...
 %APPIUM_RUN% driver install uiautomator2
 SET UIA2_ERR=%ERRORLEVEL%
-IF %UIA2_ERR%==0 GOTO :uia2_ok
+echo driver install uiautomator2 exit=%UIA2_ERR% >> "%LOG%"
+IF %UIA2_ERR% EQU 0 GOTO :uia2_ok
+
 echo.
-echo   ERROR: Failed to install UiAutomator2 driver. (exit code %UIA2_ERR%)
-echo   Please run install.bat as Administrator and retry.
+echo   ERROR: UiAutomator2 install failed (exit %UIA2_ERR%).
+echo   If you see permission errors, try running as Administrator.
+echo   See log: %LOG%
 SET SETUP_FAILED=1
-GOTO :done
+GOTO :done_tail
 
 :uia2_ok
-echo   OK  UiAutomator2 installed
+echo   OK  UiAutomator2 driver installed
 echo   Installed drivers:
-%APPIUM_RUN% driver list
+%APPIUM_RUN% driver list --installed
+echo [5/6] OK >> "%LOG%"
 
-REM ── Python virtual environment (post-setup) ──────────────────────────────────
+REM ============================================================
 echo.
-echo   Setting up Python packages...
-IF EXIST ".venv" GOTO :venv_ok
-python -m venv .venv
-IF NOT ERRORLEVEL 1 GOTO :venv_ok
-echo   ERROR: Failed to create virtual environment.
+echo [6/6] Python packages...
+echo [6/6] Python packages >> "%LOG%"
+IF EXIST ".venv" GOTO :venv_ready
+echo   Creating virtual environment...
+python -m venv .venv >> "%LOG%" 2>&1
+IF NOT ERRORLEVEL 1 GOTO :venv_ready
+echo   ERROR: Failed to create .venv. See log: %LOG%
 SET SETUP_FAILED=1
-GOTO :done
+GOTO :done_tail
 
-:venv_ok
+:venv_ready
 call .venv\Scripts\activate.bat
-pip install -r requirements.txt -q
-IF NOT ERRORLEVEL 1 GOTO :pip_ok
-echo   ERROR: Failed to install Python packages.
+echo   Installing requirements...
+pip install -r requirements.txt
+SET PIP_ERR=%ERRORLEVEL%
+echo pip install exit=%PIP_ERR% >> "%LOG%"
+IF %PIP_ERR% EQU 0 GOTO :pip_ok
+echo   ERROR: pip install failed (exit %PIP_ERR%). See log: %LOG%
 SET SETUP_FAILED=1
-GOTO :done
+GOTO :done_tail
 
 :pip_ok
-echo   OK  Packages installed
+echo   OK  Python packages installed
+echo [6/6] OK >> "%LOG%"
 
-REM ── Done ────────────────────────────────────────────────────────────────────
+REM ============================================================
 echo.
-echo   +--------------------------------------------------+
-echo   ^|  Setup complete!                                ^|
-echo   +--------------------------------------------------+
+echo   +====================================================+
+echo   ^|   Setup complete!                                 ^|
+echo   +====================================================+
 echo.
 echo   Next steps:
 echo   1. Connect your Android phone via USB
-echo   2. Double-click start.bat -^> browser opens automatically
+echo   2. Double-click run.bat -^> browser opens automatically
+echo.
+echo   Verification commands:
+echo     appium -v
+echo     appium driver list --installed
+echo     python -c "import sys; print(sys.version)"
+echo.
+echo SpatchEx install completed OK %DATE% %TIME% >> "%LOG%"
+echo Log: %LOG%
+GOTO :done
+
+:done_tail
+echo.
+echo   ---- Last 30 lines from log (%LOG%) ----
+powershell -NoProfile -Command "if (Test-Path '%LOG%') { Get-Content '%LOG%' -Tail 30 } else { Write-Host 'Log not found.' }"
+echo   ---- End of log ----
 echo.
 
 :done
-echo SpatchEx install ended: %DATE% %TIME% >> "%LOG%"
+echo SpatchEx install ended %DATE% %TIME% >> "%LOG%"
 echo.
 IF "%SETUP_FAILED%"=="1" (
-  echo   Setup did not complete successfully. See errors above.
+  echo   Setup did NOT complete. See errors above.
+  echo   Full log: %LOG%
 )
-echo   Debug log: %LOG%
-echo   Press any key to close this window...
+echo   Press any key to close...
 pause >nul
 IF "%SETUP_FAILED%"=="1" EXIT /B 1
+EXIT /B 0
