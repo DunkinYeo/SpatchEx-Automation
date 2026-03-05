@@ -17,6 +17,8 @@ config/_web_run.yaml
 # Install debug log
 install_debug.log
 
-# Artifacts output (keep dir, ignore contents)
-artifacts/*
+# Artifacts output (keep dirs, ignore generated files)
+artifacts/**
 !artifacts/.gitkeep
+!artifacts/logs/
+!artifacts/logs/.gitkeep

@@ -132,14 +132,16 @@ python src\main.py --config config\run.example.yaml
 | 증상 | 해결 방법 |
 |------|-----------|
 | Windows에서 아무 창도 안 뜸 | ZIP 우클릭 → 속성 → Unblock 체크 후 재시도 |
-| "Python을 찾을 수 없다" 오류 | install.bat 재실행 (자동 설치됨) |
+| "Python을 찾을 수 없다" 오류 | `install\install.bat` 재실행 (자동 설치됨) |
+| ".venv not found" 오류 | `install\install.bat` 먼저 실행 |
 | ADB 기기 인식 안 됨 | USB 디버깅 ON 확인, 케이블 재연결 |
 | 브라우저가 안 열림 | `http://127.0.0.1:5001` 직접 입력 |
 | `uiautomator2 [not installed]` | `appium driver install uiautomator2` 실행 |
 | `adb devices` 결과가 비어 있음 | 기기에서 USB 디버깅 ON → 케이블 재연결 → 팝업에서 "항상 허용" |
-| "Appium cannot create session" | Appium 서버 실행 중인지 확인, udid·app_package 설정 확인 |
+| "Appium cannot create session" | "Appium Server" 창이 열려 있는지 확인, udid·app_package 설정 확인 |
+| Appium 창이 바로 닫힘 | `artifacts/logs/appium_*.log` 또는 `%TEMP%\spatch_appium_*.log` 확인 |
 | logcat capture failed on Windows | adb가 PATH에 없는 경우 발생 — 동작에는 영향 없음 (best-effort) |
-| Appium 4단계에서 멈춘 것처럼 보임 | `%TEMP%\spatch_install_*.log` 파일로 원인 확인. `appium -v` 로 수동 점검 |
+| Appium 설치 단계에서 멈춘 것처럼 보임 | `%TEMP%\spatch_install_*.log` 파일로 원인 확인. `appium -v` 로 수동 점검 |
 
 ---
 
