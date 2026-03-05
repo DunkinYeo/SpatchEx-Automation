@@ -236,7 +236,7 @@ def main():
         ensure_measurement_started(driver)
         reporter.log_event("measurement_started", {})
 
-        def job(_at_hour: float | None = None, payload: dict | None = None):
+        def job(at_hour: float | None = None, payload: dict | None = None):
             payload  = payload or {}
             symptoms = payload.get("symptoms") or []
             other    = payload.get("other_text") or ""
