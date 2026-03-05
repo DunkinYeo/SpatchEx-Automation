@@ -12,8 +12,8 @@ Offline detection:
   If visible, the offline consent checkbox is ticked before proceeding.
 """
 
-from src.android.driver import AndroidDriver
-from src.utils.retry import retry
+from src.driver import AndroidDriver
+from src.retry import retry
 
 
 @retry(tries=3, delay=3)

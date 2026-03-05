@@ -11,4 +11,4 @@ Write-Host ""
 Write-Host "  Starting setup..."
 Write-Host ""
 
-Start-Process "cmd.exe" -ArgumentList "/k install.bat" -WorkingDirectory $PSScriptRoot
+Start-Process "cmd.exe" -ArgumentList "/k install\install.bat" -WorkingDirectory $PSScriptRoot

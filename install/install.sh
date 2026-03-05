@@ -2,7 +2,7 @@
 # SpatchEx Automation Tool — Mac first-time install script
 # Usage: bash install.sh  (or ./install.sh)
 set -e
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { echo -e "${GREEN}  OK  $1${NC}"; }

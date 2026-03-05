@@ -3,7 +3,7 @@
 # Usage: double-click or run ./start.sh in terminal
 
 set -e
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if [ -f ".venv/bin/activate" ]; then
   source .venv/bin/activate

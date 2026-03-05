@@ -13,3 +13,10 @@ config/_web_run.yaml
 
 # Git patch files
 *.patch
+
+# Install debug log
+install_debug.log
+
+# Artifacts output (keep dir, ignore contents)
+artifacts/*
+!artifacts/.gitkeep

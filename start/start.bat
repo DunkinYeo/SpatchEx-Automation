@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM Activate virtual environment
 if exist ".venv\Scripts\activate.bat" (

@@ -8,9 +8,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-from src.utils.retry import retry
-from src.utils.artifacts import ArtifactManager
-from src.orchestrator.reporting import RunReporter
+from src.retry import retry
+from src.artifacts import ArtifactManager
+from src.reporter import RunReporter
 
 
 class AndroidDriver:

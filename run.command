@@ -6,8 +6,8 @@ if [ ! -d ".venv" ]; then
   echo ""
   echo "  First run detected. Installing required tools..."
   echo ""
-  bash install.sh
+  bash install/install.sh
 fi
 
 open "http://127.0.0.1:5001"
-bash start.sh
+bash start/start.sh

@@ -5,13 +5,16 @@ import random
 import subprocess
 import sys
 
+# Allow running as `python src/main.py` from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import yaml
 
-from src.android.driver import AndroidDriver
-from src.orchestrator.reporting import RunReporter
-from src.orchestrator.scheduler import LongRunScheduler
-from src.utils.artifacts import ArtifactManager
-from src.utils.slack import slack_notify
+from src.driver import AndroidDriver
+from src.reporter import RunReporter
+from src.scheduler import LongRunScheduler
+from src.artifacts import ArtifactManager
+from src.slack import slack_notify
 from src.workflows.measurement_start import ensure_measurement_started
 from src.workflows.symptom_inject import inject_symptom_event
 

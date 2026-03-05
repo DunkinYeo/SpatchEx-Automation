@@ -6,7 +6,7 @@ cmd /k "%~f0"
 EXIT /B
 
 :run
-cd /d "%~dp0"
+cd /d "%~dp0.."
 SET LOG=install_debug.log
 echo SpatchEx install started: %DATE% %TIME% > "%LOG%"
 

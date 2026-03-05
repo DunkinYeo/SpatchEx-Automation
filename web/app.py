@@ -196,7 +196,7 @@ def api_start():
         _state["start_ts"] = start_ts
         _state["out_dir"] = None
         _state["proc"] = subprocess.Popen(
-            [sys.executable, str(ROOT / "main.py"), "--config", str(cfg_path)],
+            [sys.executable, str(ROOT / "src" / "main.py"), "--config", str(cfg_path)],
             cwd=str(ROOT),
         )
 

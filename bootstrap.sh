@@ -53,7 +53,7 @@ fi
 
 # ── 4. Install dependencies (delegated to install.sh) ─────────────────────────
 step "Installing dependencies (Python / Node.js / ADB / Appium)"
-bash "$INSTALL_DIR/install.sh"
+bash "$INSTALL_DIR/install/install.sh"
 
 # ── 5. Launch web UI ─────────────────────────────────────────────────────────
 echo ""
@@ -61,4 +61,4 @@ echo "  +--------------------------------------------+"
 echo "  |   Setup complete! Launching Test UI...     |"
 echo "  +--------------------------------------------+"
 echo ""
-bash "$INSTALL_DIR/start.sh"
+bash "$INSTALL_DIR/start/start.sh"

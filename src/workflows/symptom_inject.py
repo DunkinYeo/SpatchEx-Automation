@@ -15,8 +15,8 @@ On failure:
 
 import time
 
-from src.android.driver import AndroidDriver
-from src.utils.retry import retry
+from src.driver import AndroidDriver
+from src.retry import retry
 
 
 @retry(tries=3, delay=3)
