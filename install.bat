@@ -86,70 +86,77 @@ GOTO :done
 :adb_ok
 echo   OK  ADB ready
 
-REM ── 4. Appium (via npx — no global install needed) ──────────────────────────
+REM ── 4. Appium ─────────────────────────────────────────────────────────────────
 echo.
 echo [4/5] Checking Appium...
 
 REM Ensure Node.js and npm global bin are always in PATH
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
-REM ── Diagnostic block (written to log only) ───────────────────────────────────
+REM Diagnostic info to log (console stays clean)
 echo. >> "%LOG%"
 echo === [4/5] Appium Diagnostics: %DATE% %TIME% === >> "%LOG%"
 echo PATH=%PATH% >> "%LOG%"
-echo --- where node --- >> "%LOG%"
 where node >> "%LOG%" 2>&1
-echo --- where npm --- >> "%LOG%"
 where npm >> "%LOG%" 2>&1
-echo --- npm -v --- >> "%LOG%"
 npm -v >> "%LOG%" 2>&1
-echo --- where npx --- >> "%LOG%"
 where npx >> "%LOG%" 2>&1
-echo --- npx -v --- >> "%LOG%"
-npx -v >> "%LOG%" 2>&1
-echo --- where appium (global) --- >> "%LOG%"
 where appium >> "%LOG%" 2>&1
-echo --- appium -v (global) --- >> "%LOG%"
 appium -v >> "%LOG%" 2>&1
-echo --- npm config get registry --- >> "%LOG%"
 npm config get registry >> "%LOG%" 2>&1
-echo --- npm ping --- >> "%LOG%"
-npm ping >> "%LOG%" 2>&1
-echo --- npx -y appium@3 -v --- >> "%LOG%"
 
-REM Verify npm is available before trying to install
+REM Verify npm is available
 npm --version >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :npm_ok
-echo   FAIL: npm not found. Please close and re-run install.bat
+echo   FAIL: npm not found. Close and re-run install.bat
 echo FAIL: npm not found >> "%LOG%"
 GOTO :done
 :npm_ok
 
-REM Run Appium via npx; output captured to log (downloads ~50 MB on first run)
-echo   Verifying Appium via npx (first run downloads ~50 MB)...
+REM 4a. Use global Appium if already installed (instant, no download needed)
+SET APPIUM_RUN=appium
+appium -v >nul 2>&1
+IF NOT ERRORLEVEL 1 GOTO :appium_global_found
+
+REM 4b. Global Appium missing — install via npm (shows live progress on console)
+echo   Appium not found. Installing globally via npm...
+npm i -g appium
+SET NPM_ERR=%ERRORLEVEL%
+IF %NPM_ERR%==0 GOTO :appium_global_found
+echo   npm install failed (exit %NPM_ERR%). Trying npx fallback...
+echo npm i -g appium failed (exit %NPM_ERR%) >> "%LOG%"
+
+REM 4c. npx fallback — explicit console message so user knows it is not frozen
+SET APPIUM_RUN=npx -y appium@3
+echo   Running Appium via npx (may take a minute on first run)...
 npx -y appium@3 -v >> "%LOG%" 2>&1
-IF NOT ERRORLEVEL 1 GOTO :appium_ok
+IF NOT ERRORLEVEL 1 GOTO :appium_npx_found
 
 echo.
-echo   FAIL: npx -y appium@3 -v failed. Check internet connection.
-echo   See %LOG% for details.
-echo FAIL: npx -y appium@3 -v returned non-zero at %DATE% %TIME% >> "%LOG%"
+echo   FAIL: Appium could not start. Check internet and see %LOG%
+echo FAIL: all Appium checks failed at %DATE% %TIME% >> "%LOG%"
 SET SETUP_FAILED=1
 GOTO :done
 
+:appium_global_found
+FOR /F "tokens=*" %%i IN ('appium -v 2^>nul') DO echo   OK  Appium %%i
+GOTO :appium_ok
+
+:appium_npx_found
+echo   OK  Appium (via npx)
+
 :appium_ok
-FOR /F "tokens=*" %%i IN ('npx -y appium@3 -v 2^>nul') DO echo   OK  Appium %%i
 
 REM ── 5. UiAutomator2 driver ───────────────────────────────────────────────────
 echo.
 echo [5/5] Checking UiAutomator2 driver...
 SET "DRIVER_TMP=%TEMP%\appium_drivers.txt"
-npx -y appium@3 driver list --installed > "%DRIVER_TMP%" 2>&1
+%APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
 echo   UiAutomator2 not installed. Installing now...
-npx -y appium@3 driver install uiautomator2
+%APPIUM_RUN% driver install uiautomator2
 SET UIA2_ERR=%ERRORLEVEL%
 IF %UIA2_ERR%==0 GOTO :uia2_ok
 echo.
@@ -161,7 +168,7 @@ GOTO :done
 :uia2_ok
 echo   OK  UiAutomator2 installed
 echo   Installed drivers:
-npx -y appium@3 driver list
+%APPIUM_RUN% driver list
 
 REM ── Python virtual environment (post-setup) ──────────────────────────────────
 echo.
