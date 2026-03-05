@@ -122,26 +122,27 @@ REM ============================================================
 echo.
 echo [4/6] Appium...
 echo [4/6] Appium diagnostics >> "%LOG%"
-echo   PATH=%PATH% >> "%LOG%"
-where node  >> "%LOG%" 2>&1
-where npm   >> "%LOG%" 2>&1
 where appium >> "%LOG%" 2>&1
-IF EXIST "%APPIUM_CMD%" echo   APPIUM_CMD exists: %APPIUM_CMD% >> "%LOG%"
+IF EXIST "%APPIUM_CMD%" (echo   APPIUM_CMD exists >> "%LOG%") ELSE (echo   APPIUM_CMD missing >> "%LOG%")
 
-REM 4a. Explicit path: %APPDATA%\npm\appium.cmd
+REM 4a. Explicit global path: %APPDATA%\npm\appium.cmd
 IF EXIST "%APPIUM_CMD%" (
   "%APPIUM_CMD%" -v >nul 2>&1
-  IF NOT ERRORLEVEL 1 SET "APPIUM_RUN=%APPIUM_CMD%"
+  IF NOT ERRORLEVEL 1 (
+    SET "APPIUM_RUN=%APPIUM_CMD%"
+    GOTO :appium_found
+  )
 )
-IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
 
 REM 4b. PATH-based appium
 appium -v >nul 2>&1
-IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
-IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
+IF NOT ERRORLEVEL 1 (
+  SET APPIUM_RUN=appium
+  GOTO :appium_found
+)
 
-REM 4c. Not installed — install globally (shows live progress on console)
-echo   Not found. Installing globally (this can take a few minutes)...
+REM 4c. Not installed — install globally (live console output so it doesn't look frozen)
+echo   Not found. Installing globally via npm (this can take a few minutes)...
 echo npm i --location=global appium started >> "%LOG%"
 IF EXIST "%NPM_CMD%" (
   "%NPM_CMD%" i --location=global appium
@@ -150,30 +151,33 @@ IF EXIST "%NPM_CMD%" (
 )
 SET NPM_ERR=%ERRORLEVEL%
 echo npm i -g appium exit=%NPM_ERR% >> "%LOG%"
-
 IF %NPM_ERR% NEQ 0 GOTO :appium_npm_failed
 
-REM 4d. Verify after install
+REM 4d. Re-verify after global install
 IF EXIST "%APPIUM_CMD%" (
   "%APPIUM_CMD%" -v >nul 2>&1
-  IF NOT ERRORLEVEL 1 SET "APPIUM_RUN=%APPIUM_CMD%"
+  IF NOT ERRORLEVEL 1 (
+    SET "APPIUM_RUN=%APPIUM_CMD%"
+    GOTO :appium_found
+  )
 )
-IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
 appium -v >nul 2>&1
-IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
-IF NOT "%APPIUM_RUN%"=="" GOTO :appium_found
+IF NOT ERRORLEVEL 1 (
+  SET APPIUM_RUN=appium
+  GOTO :appium_found
+)
 
-REM npm "succeeded" but still not runnable — fall through to npx
+REM 4e. npx fallback — output shown on console (NOT redirected to log) so it doesn't appear frozen
 :appium_npm_failed
-echo   Global install failed or appium not runnable. Trying npx fallback...
-echo npx fallback triggered >> "%LOG%"
+echo   Global install unavailable. Trying npx fallback...
+echo   (First run downloads appium ~1 min — do not close this window)
+echo npx fallback >> "%LOG%"
 SET "APPIUM_RUN=npx -y appium@3"
-echo   (first run may take a minute to cache appium)
-npx -y appium@3 -v >> "%LOG%" 2>&1
+npx -y appium@3 -v
 IF NOT ERRORLEVEL 1 GOTO :appium_npx_ok
 
 echo.
-echo   ERROR: Appium could not be started.
+echo   ERROR: Appium could not be started via npm or npx.
 echo   See log: %LOG%
 echo FAIL: all Appium strategies failed >> "%LOG%"
 SET SETUP_FAILED=1
@@ -194,11 +198,16 @@ echo.
 echo [5/6] UiAutomator2 driver...
 echo [5/6] UiAutomator2 >> "%LOG%"
 SET "DRIVER_TMP=%TEMP%\appium_drivers_%_TS%.txt"
+
+REM Check installed drivers — capture then print so console shows progress
+echo   Checking installed drivers...
 %APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
+type "%DRIVER_TMP%"
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
 IF NOT ERRORLEVEL 1 GOTO :uia2_ok
 
-echo   Not installed. Installing (this can take a few minutes)...
+REM Install — output always shown on console
+echo   Not installed. Installing uiautomator2 (this can take a few minutes)...
 %APPIUM_RUN% driver install uiautomator2
 SET UIA2_ERR=%ERRORLEVEL%
 echo driver install uiautomator2 exit=%UIA2_ERR% >> "%LOG%"
@@ -213,8 +222,6 @@ GOTO :done_tail
 
 :uia2_ok
 echo   OK  UiAutomator2 driver installed
-echo   Installed drivers:
-%APPIUM_RUN% driver list --installed
 echo [5/6] OK >> "%LOG%"
 
 REM ============================================================
