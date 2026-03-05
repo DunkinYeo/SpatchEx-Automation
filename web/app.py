@@ -36,6 +36,7 @@ SPATCH_EX_SELECTORS = {
     "duration_72h_text": ["72 Hours", "72 시간"],
     "confirm_text": ["Confirm", "OK", "확인"],
     "offline_mode_text": ["Offline", "오프라인"],
+    "main_tab_text": ["My ECG", "나의 ECG"],
     "symptom_add_text": ["Add Symptom", "증상 추가"],
     "symptom_picker_title": ["Check your symptoms", "증상을 선택해주세요."],
     # symptom_confirm_text / symptom_done_text intentionally omitted

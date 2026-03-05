@@ -150,7 +150,11 @@ class AndroidDriver:
         for t in texts:
             try:
                 el = self.find(t, timeout=per, contains=contains)
-                el.click()
+                loc = el.location
+                sz = el.size
+                cx = loc["x"] + sz["width"] // 2
+                cy = loc["y"] + sz["height"] // 2
+                self.drv.tap([(cx, cy)])
                 return True
             except Exception as e:
                 last_exc = e

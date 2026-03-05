@@ -30,6 +30,31 @@ def ensure_measurement_started(d: AndroidDriver):
         d.reporter.log_event("measurement_already_running", {})
         return
 
+    # ── A1. Measurement running but on sub-screen or behind a dialog ─
+    # Step 1: dismiss overlay dialogs (e.g. ECG quality warning).
+    confirm = d.sel.get("confirm_text")
+    if confirm and d.is_visible_text(confirm):
+        try:
+            d.tap_text(confirm, timeout=3, contains=False)
+            d.wait_idle(0.5)
+            if d.is_visible_text(symptom_btn):
+                d.reporter.log_event("measurement_already_running", {})
+                return
+        except Exception:
+            pass
+
+    # Step 2: navigate to main ECG tab if on a sub-screen (e.g. Diary).
+    main_tab = d.sel.get("main_tab_text")
+    if main_tab and d.is_visible_text(main_tab):
+        try:
+            d.tap_text(main_tab, timeout=5, contains=True)
+            d.wait_idle(1.0)
+            if d.is_visible_text(symptom_btn):
+                d.reporter.log_event("measurement_already_running", {})
+                return
+        except Exception:
+            pass
+
     # ── B. Home screen → tap "Start Now" first ────────────────────────
     start_now = d.sel.get("start_now_text", "Start Now")
     if d.is_visible_text(start_now):
