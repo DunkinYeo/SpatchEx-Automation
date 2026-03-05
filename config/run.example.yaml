@@ -13,6 +13,17 @@ run:
   symptom_interval_hours: 4   # how often to inject a symptom automatically
   start_immediately: true     # if false, waits for the first interval before injecting
 
+  # Optional: add random jitter to each scheduled injection time
+  # e.g. 300 = ±5 minutes — keeps injections from landing on exact boundaries
+  jitter_seconds: 0
+
+  # Optional: suppress injections during low-activity hours
+  # start/end are decimal hours (e.g. 23.0 = 11 PM, 6.0 = 6 AM)
+  # Supports overnight windows (start > end), e.g. 23–6
+  # quiet_hours:
+  #   start: 23.0
+  #   end:   6.0
+
 # ── Android / Appium connection ───────────────────────────────────────────────
 android:
   # [REQUIRED] Appium server address — default is localhost:4723
@@ -111,6 +122,33 @@ activity_catalog:
   - "Eating"
   - "Caffeine intake"
   - "Alcohol intake"
+
+# ── Recovery settings (optional) ─────────────────────────────────────────────
+# Controls the 3-step escalating recovery triggered when Appium session or
+# UI health checks fail before a job runs.
+#   Step 1: press Back key + short wait
+#   Step 2: start_activity (force relaunch)
+#   Step 3: terminate + activate (kill / relaunch)
+# After each step the driver waits cooldown_seconds, then re-checks UI health.
+recovery:
+  cooldown_seconds_between_steps: 30   # wait time between each recovery step
+
+# ── Artifact settings (optional) ─────────────────────────────────────────────
+artifacts:
+  output_dir: "artifacts"              # root directory for all run outputs
+  # collect_logcat_on controls when adb logcat is captured:
+  #   every_job  — capture after every injection (verbose; useful for debugging)
+  #   on_failure — capture only when an injection fails (recommended default)
+  collect_logcat_on: "on_failure"
+
+# ── Reporting settings (optional) ────────────────────────────────────────────
+reporting:
+  html_report: true                    # generate summary.html after the run
+  # Slack webhook (optional) — leave blank to disable
+  # slack:
+  #   webhook_url: "https://hooks.slack.com/services/..."
+  #   channel: "#qa-alerts"
+  #   mention: "@here"
 
 # ── Slack notifications (optional) ───────────────────────────────────────────
 slack:
