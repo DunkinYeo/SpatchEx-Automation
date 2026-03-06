@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Environment Setup
@@ -411,8 +412,7 @@ IF "%_FAIL%"=="1" (
     echo   One or more steps failed. Fix the errors above and re-run install.bat.
     echo   Full log: %LOG%
     echo.
-    echo   Press any key to close...
-    pause >nul
+    pause
     EXIT /B 1
 )
 
@@ -429,6 +429,5 @@ echo.
 echo   Full log: %LOG%
 echo.
 echo [DONE] >> "%LOG%"
-echo   Press any key to close...
-pause >nul
+pause
 EXIT /B 0
