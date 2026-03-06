@@ -19,6 +19,7 @@ REM    %USERPROFILE%\Desktop\SpatchEx-Automation_UAT_<timestamp>.zip
 REM
 REM  What is included in the bundle:
 REM    00_README_QuickStart.txt   User guide
+REM    install.bat                First-time setup (run once)
 REM    run.bat                    Entry point (double-click)
 REM    STOP.bat                   Stop script
 REM    start\start.bat            Startup logic
@@ -98,6 +99,7 @@ SET "DEST=%STAGE%\SpatchEx-Automation"
 REM ── Copy user-facing files ────────────────────────────────────
 echo   Copying user-facing files...
 IF EXIST "00_README_QuickStart.txt" copy "00_README_QuickStart.txt" "%DEST%\" >nul
+IF EXIST "install.bat"              copy "install.bat"              "%DEST%\" >nul
 IF EXIST "run.bat"                  copy "run.bat"                  "%DEST%\" >nul
 IF EXIST "STOP.bat"                 copy "STOP.bat"                 "%DEST%\" >nul
 IF EXIST "requirements.txt"        copy "requirements.txt"         "%DEST%\" >nul
