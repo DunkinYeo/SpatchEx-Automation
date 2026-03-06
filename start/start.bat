@@ -11,6 +11,30 @@ REM   - Flat label flow; no nested IF blocks for error checks
 REM ============================================================
 cd /d "%~dp0.."
 
+REM ── Verify project root (web\app.py must exist) ──────────────
+IF EXIST "web\app.py" GOTO :root_ok
+echo.
+echo   ERROR: web\app.py not found.
+echo   Current directory: %CD%
+echo   Directory listing:
+dir /b
+echo.
+echo   Expected project layout:
+echo     Ex-Automation\
+echo       run.bat
+echo       start\start.bat   ^<-- this file
+echo       web\app.py        ^<-- missing!
+echo       install\
+echo       src\
+echo.
+echo   If you extracted the ZIP, make sure you are running
+echo   start.bat from inside the Ex-Automation folder,
+echo   not from a nested sub-folder.
+echo.
+pause
+EXIT /B 1
+:root_ok
+
 REM ── PATH hardening ───────────────────────────────────────────
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
