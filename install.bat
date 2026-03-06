@@ -12,12 +12,11 @@ REM
 REM  Steps:
 REM    [1] Verify Python 3.10+
 REM    [2] Verify Node.js / npm
-REM    [3] Verify ADB
+REM    [3] Android SDK Detection + ADB Validation
 REM    [4] Install Appium (if missing)
 REM    [5] Install UiAutomator2 driver (if missing)
 REM    [6] Create Python virtual environment
 REM    [7] pip install requirements.txt
-REM    [8] Detect Android SDK
 REM    [Done] SpatchEx Automation Installed
 REM ============================================================
 REM Keep window open on double-click
@@ -126,19 +125,81 @@ SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
 :step3
 REM ============================================================
-REM [3] Verify ADB
+REM [3] Android SDK Detection + ADB Validation
+REM
+REM  Checks ANDROID_HOME, ANDROID_SDK_ROOT, and common paths.
+REM  Sets ANDROID_HOME, ANDROID_SDK_ROOT, and PATH.
+REM  Fails hard if SDK is not found -- Appium requires ADB.
 REM ============================================================
 echo.
-echo [3] Verify ADB...
+echo [3] Android SDK detection...
+echo [3] Checking Android SDK... >> "%LOG%"
+
+SET "_SDK_FOUND=0"
+SET "_SDK_PATH="
+
+REM Priority 1: ANDROID_HOME already set and valid
+IF NOT "%ANDROID_HOME%"=="" (
+    IF EXIST "%ANDROID_HOME%\platform-tools\adb.exe" (
+        SET "_SDK_PATH=%ANDROID_HOME%"
+        SET "_SDK_FOUND=1"
+        GOTO :sdk_found
+    )
+)
+
+REM Priority 2: ANDROID_SDK_ROOT already set and valid
+IF NOT "%ANDROID_SDK_ROOT%"=="" (
+    IF EXIST "%ANDROID_SDK_ROOT%\platform-tools\adb.exe" (
+        SET "_SDK_PATH=%ANDROID_SDK_ROOT%"
+        SET "_SDK_FOUND=1"
+        GOTO :sdk_found
+    )
+)
+
+REM Priority 3: %LOCALAPPDATA%\Android\Sdk (Android Studio default)
+IF EXIST "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+    SET "_SDK_PATH=%LOCALAPPDATA%\Android\Sdk"
+    SET "_SDK_FOUND=1"
+    GOTO :sdk_found
+)
+
+REM Priority 4: %USERPROFILE%\AppData\Local\Android\Sdk
+IF EXIST "%USERPROFILE%\AppData\Local\Android\Sdk\platform-tools\adb.exe" (
+    SET "_SDK_PATH=%USERPROFILE%\AppData\Local\Android\Sdk"
+    SET "_SDK_FOUND=1"
+    GOTO :sdk_found
+)
+
+echo.
+echo   ERROR  Android SDK not found.
+echo.
+echo   Please install Android Studio or Android command-line tools.
+echo   Download: https://developer.android.com/studio
+echo.
+echo   After installing, re-run install.bat.
+echo.
+echo [3] FAIL: Android SDK not found >> "%LOG%"
+pause
+EXIT /B 1
+
+:sdk_found
+SET "ANDROID_HOME=%_SDK_PATH%"
+SET "ANDROID_SDK_ROOT=%_SDK_PATH%"
+SET "PATH=%ANDROID_HOME%\platform-tools;%PATH%"
+
+echo   Detected Android SDK:
+echo   %ANDROID_HOME%
+echo [3] SDK: %ANDROID_HOME% >> "%LOG%"
+
 adb version >nul 2>&1
 IF ERRORLEVEL 1 (
-    echo   WARN  ADB not found in PATH.
     echo.
-    echo         Run step [8] will attempt auto-detection.
-    echo         Or install Android Studio to get ADB.
+    echo   ERROR  Android platform-tools missing or adb not executable.
+    echo   Expected adb.exe at: %ANDROID_HOME%\platform-tools
     echo.
-    echo [3] WARN: adb not in PATH >> "%LOG%"
-    GOTO :step4
+    echo [3] FAIL: adb not executable >> "%LOG%"
+    pause
+    EXIT /B 1
 )
 FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
     echo   PASS  %%a %%b %%c
@@ -304,7 +365,7 @@ echo [7] pip install requirements.txt...
 IF "%_FAIL%"=="1" (
     echo   SKIP  Skipping pip install due to earlier errors.
     echo [7] SKIP: earlier failures >> "%LOG%"
-    GOTO :step8
+    GOTO :create_folders
 )
 REM Verify activate.bat exists before calling it
 IF NOT EXIST ".venv\Scripts\activate.bat" (
@@ -314,7 +375,7 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     echo.
     echo [7] FAIL: activate.bat missing >> "%LOG%"
     SET _FAIL=1
-    GOTO :step8
+    GOTO :create_folders
 )
 REM activate.bat is a batch script -- CALL is correct here
 call .venv\Scripts\activate.bat
@@ -326,49 +387,10 @@ IF ERRORLEVEL 1 (
     echo.
     echo [7] FAIL: pip install >> "%LOG%"
     SET _FAIL=1
-    GOTO :step8
+    GOTO :create_folders
 )
 echo   PASS  All packages installed.
 echo [7] PASS >> "%LOG%"
-
-:step8
-REM ============================================================
-REM [8] Detect Android SDK
-REM ============================================================
-echo.
-echo [8] Android SDK detection...
-
-REM If ANDROID_HOME is already set, just confirm it
-IF NOT "%ANDROID_HOME%"=="" (
-    echo   PASS  ANDROID_HOME already set: %ANDROID_HOME%
-    echo [8] PASS: ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
-    GOTO :create_folders
-)
-
-REM Try common Windows Android SDK locations
-IF EXIST "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
-    SET "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
-    SET "ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk"
-    SET "PATH=%LOCALAPPDATA%\Android\Sdk\platform-tools;%PATH%"
-    echo   PASS  Android SDK found: %LOCALAPPDATA%\Android\Sdk
-    echo [8] PASS: SDK at %LOCALAPPDATA%\Android\Sdk >> "%LOG%"
-    GOTO :create_folders
-)
-IF EXIST "%ProgramFiles%\Android\android-sdk\platform-tools\adb.exe" (
-    SET "ANDROID_HOME=%ProgramFiles%\Android\android-sdk"
-    SET "ANDROID_SDK_ROOT=%ProgramFiles%\Android\android-sdk"
-    SET "PATH=%ProgramFiles%\Android\android-sdk\platform-tools;%PATH%"
-    echo   PASS  Android SDK found: %ProgramFiles%\Android\android-sdk
-    echo [8] PASS: SDK at %ProgramFiles%\Android\android-sdk >> "%LOG%"
-    GOTO :create_folders
-)
-
-echo   WARN  Android SDK not detected.
-echo.
-echo         To fix: install Android Studio, or set ANDROID_HOME manually.
-echo         run.bat will also attempt detection at startup.
-echo.
-echo [8] WARN: SDK not found >> "%LOG%"
 
 :create_folders
 REM ── Create required runtime folders ─────────────────────────
