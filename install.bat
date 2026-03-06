@@ -1,20 +1,22 @@
 @echo off
 REM ============================================================
-REM SpatchEx -- First-Time Setup
+REM SpatchEx -- Environment Setup
 REM install.bat  (project root)
 REM
 REM  Run this ONCE before using run.bat.
-REM  Sets up Python venv, Appium, ADB, and all dependencies.
+REM  This script ONLY prepares the environment.
+REM  It does NOT start any servers or run any tests.
 REM
 REM  Steps:
-REM    [1] Python 3.10+
-REM    [2] Node.js / npm
-REM    [3] ADB / Android SDK
-REM    [4] Appium installation
-REM    [5] UiAutomator2 driver
-REM    [6] Python virtual environment + packages
-REM    [7] Create runtime folders
-REM    [8] Done
+REM    [1] Verify Python 3.10+
+REM    [2] Verify Node.js / npm
+REM    [3] Verify ADB
+REM    [4] Install Appium (if missing)
+REM    [5] Install UiAutomator2 driver (if missing)
+REM    [6] Create Python virtual environment
+REM    [7] pip install requirements.txt
+REM    [8] Detect Android SDK
+REM    [Done] SpatchEx Automation Installed
 REM ============================================================
 REM Keep window open on double-click
 IF "%INSTALL_RUNNING%"=="1" GOTO :run
@@ -44,7 +46,7 @@ echo SpatchEx install started %DATE% %TIME% > "%LOG%"
 REM ── Banner ───────────────────────────────────────────────────
 echo.
 echo   +==============================================+
-echo   ^|   SpatchEx -- First-Time Setup              ^|
+echo   ^|   SpatchEx -- Environment Setup             ^|
 echo   +==============================================+
 echo.
 echo   Log: %LOG%
@@ -53,9 +55,9 @@ echo.
 SET _FAIL=0
 
 REM ============================================================
-REM [1] Python 3.10+
+REM [1] Verify Python 3.10+
 REM ============================================================
-echo [1] Python 3.10+...
+echo [1] Verify Python 3.10+...
 python --version >nul 2>&1
 IF ERRORLEVEL 1 (
     echo.
@@ -91,10 +93,10 @@ SET _FAIL=1
 
 :step2
 REM ============================================================
-REM [2] Node.js / npm
+REM [2] Verify Node.js / npm
 REM ============================================================
 echo.
-echo [2] Node.js / npm...
+echo [2] Verify Node.js / npm...
 node --version >nul 2>&1
 IF ERRORLEVEL 1 (
     echo.
@@ -123,52 +125,28 @@ SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
 :step3
 REM ============================================================
-REM [3] ADB / Android SDK
+REM [3] Verify ADB
 REM ============================================================
 echo.
-echo [3] ADB / Android SDK...
+echo [3] Verify ADB...
 adb version >nul 2>&1
-IF ERRORLEVEL 1 GOTO :adb_try_detect
+IF ERRORLEVEL 1 (
+    echo   WARN  ADB not found in PATH.
+    echo.
+    echo         Run step [8] will attempt auto-detection.
+    echo         Or install Android Studio to get ADB.
+    echo.
+    echo [3] WARN: adb not in PATH >> "%LOG%"
+    GOTO :step4
+)
 FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
     echo   PASS  %%a %%b %%c
     echo [3] PASS: %%a %%b %%c >> "%LOG%"
 )
-GOTO :step4
-
-:adb_try_detect
-IF EXIST "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
-    SET "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
-    SET "ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk"
-    SET "PATH=%LOCALAPPDATA%\Android\Sdk\platform-tools;%PATH%"
-    GOTO :adb_found_path
-)
-IF EXIST "%ProgramFiles%\Android\android-sdk\platform-tools\adb.exe" (
-    SET "ANDROID_HOME=%ProgramFiles%\Android\android-sdk"
-    SET "ANDROID_SDK_ROOT=%ProgramFiles%\Android\android-sdk"
-    SET "PATH=%ProgramFiles%\Android\android-sdk\platform-tools;%PATH%"
-    GOTO :adb_found_path
-)
-echo   WARN  ADB not detected.
-echo.
-echo         Options:
-echo           A) Install Android Studio and add SDK Platform Tools to PATH.
-echo           B) Run install\bootstrap.bat to download a bundled ADB.
-echo.
-echo         Device connection will not work without ADB.
-echo         You can continue setup and add ADB later.
-echo.
-echo [3] WARN: adb not found >> "%LOG%"
-GOTO :step4
-
-:adb_found_path
-FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
-    echo   PASS  %%a %%b %%c  [found at %ANDROID_HOME%]
-    echo [3] PASS >> "%LOG%"
-)
 
 :step4
 REM ============================================================
-REM [4] Appium
+REM [4] Install Appium (if missing)
 REM
 REM  NOTE: appium resolves to appium.cmd on Windows.
 REM  All appium calls MUST use CALL or the parent script exits.
@@ -190,15 +168,14 @@ FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
     IF NOT DEFINED _APPIUM_VER SET "_APPIUM_VER=%%v"
 )
 del "%_APV_TMP%" >nul 2>&1
-echo   OK  Appium %_APPIUM_VER%
+echo   PASS  Appium %_APPIUM_VER%
 echo [4] PASS: Appium %_APPIUM_VER% >> "%LOG%"
 GOTO :step5
 
 :install_appium
 del "%_APV_TMP%" >nul 2>&1
-echo   Appium not found or failed to start.
+echo   Appium not found. Installing globally via npm...
 echo   PATH: %PATH%
-echo   Installing Appium globally via npm...
 echo   (This may take 1-3 minutes)
 echo [4] Installing appium via npm... >> "%LOG%"
 
@@ -238,12 +215,12 @@ FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
     IF NOT DEFINED _APPIUM_VER SET "_APPIUM_VER=%%v"
 )
 del "%_APV_TMP%" >nul 2>&1
-echo   OK  Appium %_APPIUM_VER% installed.
+echo   PASS  Appium %_APPIUM_VER% installed.
 echo [4] PASS: Appium %_APPIUM_VER% >> "%LOG%"
 
 :step5
 REM ============================================================
-REM [5] UiAutomator2 driver
+REM [5] Install UiAutomator2 driver (if missing)
 REM ============================================================
 echo.
 echo [5] UiAutomator2 driver...
@@ -283,12 +260,12 @@ echo [5] PASS >> "%LOG%"
 
 :step6
 REM ============================================================
-REM [6] Python virtual environment + packages
+REM [6] Create Python virtual environment
 REM ============================================================
 echo.
 echo [6] Python virtual environment...
 IF "%_FAIL%"=="1" (
-    echo   SKIP  Skipping Python setup due to earlier errors.
+    echo   SKIP  Skipping venv creation due to earlier errors.
     echo [6] SKIP: earlier failures >> "%LOG%"
     GOTO :step7
 )
@@ -300,10 +277,10 @@ IF NOT EXIST "requirements.txt" (
 )
 IF EXIST ".venv\Scripts\activate.bat" (
     echo   INFO  .venv already exists. Skipping creation.
-    GOTO :pip_install
+    GOTO :step7
 )
 echo   Creating .venv...
-REM python.exe is a direct executable -- do NOT use CALL
+REM python.exe is a native executable -- do NOT use CALL
 "%PYTHON_EXE%" -m venv .venv
 IF ERRORLEVEL 1 (
     echo.
@@ -314,19 +291,29 @@ IF ERRORLEVEL 1 (
     SET _FAIL=1
     GOTO :step7
 )
-echo   .venv created.
+echo   PASS  .venv created.
+echo [6] PASS >> "%LOG%"
 
-:pip_install
-echo   Installing Python packages...
-REM Verify activate.bat was created before calling it
+:step7
+REM ============================================================
+REM [7] pip install requirements.txt
+REM ============================================================
+echo.
+echo [7] pip install requirements.txt...
+IF "%_FAIL%"=="1" (
+    echo   SKIP  Skipping pip install due to earlier errors.
+    echo [7] SKIP: earlier failures >> "%LOG%"
+    GOTO :step8
+)
+REM Verify activate.bat exists before calling it
 IF NOT EXIST ".venv\Scripts\activate.bat" (
     echo.
     echo   ERROR  .venv\Scripts\activate.bat not found.
-    echo   The virtual environment may be incomplete. Delete .venv and re-run.
+    echo   Delete .venv and re-run install.bat.
     echo.
-    echo [6] FAIL: activate.bat missing >> "%LOG%"
+    echo [7] FAIL: activate.bat missing >> "%LOG%"
     SET _FAIL=1
-    GOTO :step7
+    GOTO :step8
 )
 REM activate.bat is a batch script -- CALL is correct here
 call .venv\Scripts\activate.bat
@@ -336,26 +323,59 @@ IF ERRORLEVEL 1 (
     echo   ERROR  pip install failed.
     echo   Check your network connection and requirements.txt.
     echo.
-    echo [6] FAIL: pip install >> "%LOG%"
+    echo [7] FAIL: pip install >> "%LOG%"
     SET _FAIL=1
-    GOTO :step7
+    GOTO :step8
 )
-echo   PASS  Python packages installed.
-echo [6] PASS >> "%LOG%"
-
-:step7
-REM ============================================================
-REM [7] Create runtime folders
-REM ============================================================
-echo.
-echo [7] Runtime folders...
-IF NOT EXIST "logs"    mkdir logs
-IF NOT EXIST "runtime" mkdir runtime
-echo   PASS  logs\ and runtime\ are ready.
+echo   PASS  All packages installed.
 echo [7] PASS >> "%LOG%"
 
+:step8
 REM ============================================================
-REM [8] Summary
+REM [8] Detect Android SDK
+REM ============================================================
+echo.
+echo [8] Android SDK detection...
+
+REM If ANDROID_HOME is already set, just confirm it
+IF NOT "%ANDROID_HOME%"=="" (
+    echo   PASS  ANDROID_HOME already set: %ANDROID_HOME%
+    echo [8] PASS: ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
+    GOTO :create_folders
+)
+
+REM Try common Windows Android SDK locations
+IF EXIST "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+    SET "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+    SET "ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk"
+    SET "PATH=%LOCALAPPDATA%\Android\Sdk\platform-tools;%PATH%"
+    echo   PASS  Android SDK found: %LOCALAPPDATA%\Android\Sdk
+    echo [8] PASS: SDK at %LOCALAPPDATA%\Android\Sdk >> "%LOG%"
+    GOTO :create_folders
+)
+IF EXIST "%ProgramFiles%\Android\android-sdk\platform-tools\adb.exe" (
+    SET "ANDROID_HOME=%ProgramFiles%\Android\android-sdk"
+    SET "ANDROID_SDK_ROOT=%ProgramFiles%\Android\android-sdk"
+    SET "PATH=%ProgramFiles%\Android\android-sdk\platform-tools;%PATH%"
+    echo   PASS  Android SDK found: %ProgramFiles%\Android\android-sdk
+    echo [8] PASS: SDK at %ProgramFiles%\Android\android-sdk >> "%LOG%"
+    GOTO :create_folders
+)
+
+echo   WARN  Android SDK not detected.
+echo.
+echo         To fix: install Android Studio, or set ANDROID_HOME manually.
+echo         run.bat will also attempt detection at startup.
+echo.
+echo [8] WARN: SDK not found >> "%LOG%"
+
+:create_folders
+REM ── Create required runtime folders ─────────────────────────
+IF NOT EXIST "logs"    mkdir logs
+IF NOT EXIST "runtime" mkdir runtime
+
+REM ============================================================
+REM Summary
 REM ============================================================
 echo.
 echo SpatchEx install ended %DATE% %TIME% >> "%LOG%"
@@ -374,14 +394,18 @@ IF "%_FAIL%"=="1" (
 )
 
 echo.
-echo   ---------------------------------
-echo   SpatchEx setup complete
-echo   Next step: run run.bat
-echo   ---------------------------------
+echo   ----------------------------------
+echo   SpatchEx Automation Installed
+echo   ----------------------------------
+echo.
+echo   Next step:
+echo.
+echo   Run:
+echo   run.bat
 echo.
 echo   Full log: %LOG%
 echo.
-echo [8] DONE >> "%LOG%"
+echo [DONE] >> "%LOG%"
 echo   Press any key to close...
 pause >nul
 EXIT /B 0
