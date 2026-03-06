@@ -35,6 +35,25 @@ pause
 EXIT /B 1
 :root_ok
 
+REM ── Runtime detection (prefer bundled runtimes, fall back to system) ─
+REM    Place Python in runtime\python\, ADB in runtime\platform-tools\,
+REM    and Node.js in runtime\node\ to run without any global installs.
+SET "PYTHON_EXE=python"
+SET "RUNTIME_PYTHON=0"
+IF EXIST "runtime\python\python.exe" (
+    SET "PYTHON_EXE=%CD%\runtime\python\python.exe"
+    SET "RUNTIME_PYTHON=1"
+    echo   [runtime] Using bundled Python
+)
+IF EXIST "runtime\platform-tools\adb.exe" (
+    SET "PATH=%CD%\runtime\platform-tools;%PATH%"
+    echo   [runtime] Using bundled ADB
+)
+IF EXIST "runtime\node\node.exe" (
+    SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"
+    echo   [runtime] Using bundled Node.js
+)
+
 REM ── PATH hardening ───────────────────────────────────────────
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
@@ -63,9 +82,9 @@ REM [1] Python
 REM ============================================================
 echo [1] Python...
 echo [1] Python >> "%LOG%"
-python --version >nul 2>&1
+%PYTHON_EXE% --version >nul 2>&1
 IF ERRORLEVEL 1 GOTO :py_fail
-FOR /F "tokens=*" %%v IN ('python --version 2^>^&1') DO echo   OK  %%v
+FOR /F "tokens=*" %%v IN ('%PYTHON_EXE% --version 2^>^&1') DO echo   OK  %%v
 echo [1] OK >> "%LOG%"
 GOTO :step2
 
@@ -81,6 +100,12 @@ REM ============================================================
 REM [2] Virtual environment
 REM ============================================================
 :step2
+IF "%RUNTIME_PYTHON%"=="1" (
+    echo.
+    echo [2] Virtual environment... SKIP (using bundled Python)
+    echo [2] OK (bundled python -- venv skipped) >> "%LOG%"
+    GOTO :step3
+)
 echo.
 echo [2] Virtual environment...
 echo [2] venv >> "%LOG%"
@@ -305,8 +330,8 @@ echo   ^|   Appium : http://127.0.0.1:4723           ^|
 echo   ^|   Stop   : Ctrl+C  (also close Appium win) ^|
 echo   +==============================================+
 echo.
-echo [8] python web\app.py >> "%LOG%"
-python web\app.py 2>> "%LOG%"
+echo [8] %PYTHON_EXE% web\app.py >> "%LOG%"
+%PYTHON_EXE% web\app.py 2>> "%LOG%"
 SET _WEB_ERR=%ERRORLEVEL%
 echo [8] web server exited=%_WEB_ERR% >> "%LOG%"
 

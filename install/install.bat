@@ -1,6 +1,15 @@
 @echo off
 REM ============================================================
-REM SpatchEx Long-Run Test -- Windows Setup
+REM SpatchEx Long-Run Test -- Developer / Admin Setup
+REM install\install.bat
+REM
+REM  !! THIS FILE IS FOR DEVELOPERS AND IT ADMINS ONLY !!
+REM  CS/UAT staff: do NOT run this file.
+REM  CS/UAT staff: double-click start.bat (or run.bat) instead.
+REM
+REM  Purpose: Install or refresh the global Python/Node/Appium
+REM  tools that the test runner depends on.
+REM  Run this once per machine, or when dependencies need updating.
 REM ============================================================
 REM Keep window open: re-launch inside cmd /k on direct double-click
 IF "%SPATCHEX_RUNNING%"=="1" GOTO :run
@@ -27,11 +36,11 @@ SET APPIUM_RUN=
 REM ── Banner ────────────────────────────────────────────────────
 echo.
 echo   +====================================================+
-echo   ^|   SpatchEx Long-Run Test -- Windows Setup         ^|
+echo   ^|   SpatchEx -- Developer / Admin Setup             ^|
 echo   +====================================================+
 echo.
-echo   NOTE: This is the production installer.
-echo   If you encounter issues, run install_stable.bat instead.
+echo   NOTE: This file is for IT admins and developers only.
+echo   CS/UAT staff: close this window and double-click start.bat instead.
 echo.
 echo   Log: %LOG%
 echo.
