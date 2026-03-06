@@ -1,0 +1,7 @@
+__pycache__
+.pyc
+.pyo
+.git
+.venv
+_dl
+_npm_cache

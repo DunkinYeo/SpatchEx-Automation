@@ -36,8 +36,10 @@ EXIT /B 1
 :root_ok
 
 REM ── Runtime detection (prefer bundled runtimes, fall back to system) ─
-REM    Place Python in runtime\python\, ADB in runtime\platform-tools\,
-REM    and Node.js in runtime\node\ to run without any global installs.
+REM    runtime\python\             Python embeddable
+REM    runtime\android-sdk\        Android Platform Tools (ANDROID_HOME)
+REM    runtime\node\               Node.js portable
+REM    runtime\appium\             Appium (npm installed)
 SET "PYTHON_EXE=python"
 SET "RUNTIME_PYTHON=0"
 IF EXIST "runtime\python\python.exe" (
@@ -45,18 +47,24 @@ IF EXIST "runtime\python\python.exe" (
     SET "RUNTIME_PYTHON=1"
     echo   [runtime] Using bundled Python
 )
-IF EXIST "runtime\platform-tools\adb.exe" (
-    SET "PATH=%CD%\runtime\platform-tools;%PATH%"
-    echo   [runtime] Using bundled ADB
+IF EXIST "runtime\android-sdk\platform-tools\adb.exe" (
+    SET "ANDROID_HOME=%CD%\runtime\android-sdk"
+    SET "ANDROID_SDK_ROOT=%CD%\runtime\android-sdk"
+    SET "PATH=%CD%\runtime\android-sdk\platform-tools;%PATH%"
+    echo   [runtime] Using bundled ADB (ANDROID_HOME set)
 )
 IF EXIST "runtime\node\node.exe" (
     SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"
     echo   [runtime] Using bundled Node.js
 )
+IF EXIST "runtime\appium\node_modules\.bin\appium.cmd" (
+    SET "APPIUM_CMD=%CD%\runtime\appium\node_modules\.bin\appium.cmd"
+    echo   [runtime] Using bundled Appium
+)
 
-REM ── PATH hardening ───────────────────────────────────────────
+REM ── PATH hardening (system fallback -- only if not using bundled) ────
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
-SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
+IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
 
 REM ── Timestamp + logs ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
