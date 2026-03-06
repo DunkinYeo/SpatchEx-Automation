@@ -165,38 +165,77 @@ FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"'
 :step4
 REM ============================================================
 REM [4] Appium
+REM
+REM  NOTE: appium resolves to appium.cmd on Windows.
+REM  All appium calls MUST use CALL or the parent script exits.
 REM ============================================================
 echo.
 echo [4] Appium...
-appium -v >nul 2>&1
+echo   Checking if Appium is installed...
+echo [4] Checking appium... >> "%LOG%"
+
+SET "_APV_TMP=%TEMP%\spatch_apv_%_TS%.txt"
+
+REM IMPORTANT: use CALL so control returns after appium.cmd finishes
+call appium -v > "%_APV_TMP%" 2>&1
 IF ERRORLEVEL 1 GOTO :install_appium
-FOR /F "tokens=*" %%v IN ('appium -v 2^>^&1') DO (
-    echo   PASS  Appium %%v
-    echo [4] PASS: Appium %%v >> "%LOG%"
+
+REM Appium found -- read version from temp file
+SET "_APPIUM_VER="
+FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
+    IF NOT DEFINED _APPIUM_VER SET "_APPIUM_VER=%%v"
 )
+del "%_APV_TMP%" >nul 2>&1
+echo   OK  Appium %_APPIUM_VER%
+echo [4] PASS: Appium %_APPIUM_VER% >> "%LOG%"
 GOTO :step5
 
 :install_appium
-echo   Appium not found. Installing globally via npm...
+del "%_APV_TMP%" >nul 2>&1
+echo   Appium not found or failed to start.
+echo   PATH: %PATH%
+echo   Installing Appium globally via npm...
 echo   (This may take 1-3 minutes)
-echo [4] Installing appium... >> "%LOG%"
+echo [4] Installing appium via npm... >> "%LOG%"
+
 call npm install -g appium
 IF ERRORLEVEL 1 (
     echo.
-    echo   ERROR  Failed to install Appium.
+    echo   FAIL  npm install -g appium failed.
     echo.
-    echo   Try:
-    echo     - Run this window as Administrator
-    echo     - Or run manually: npm install -g appium
+    echo   Possible causes:
+    echo     - Node.js is not installed or not in PATH
+    echo     - npm permission error (try running as Administrator)
+    echo.
+    echo   Exact command tried: npm install -g appium
+    echo   Full log: %LOG%
     echo.
     echo [4] FAIL: npm install -g appium >> "%LOG%"
     SET _FAIL=1
     GOTO :step5
 )
-FOR /F "tokens=*" %%v IN ('appium -v 2^>^&1') DO (
-    echo   PASS  Appium %%v installed.
-    echo [4] PASS: Appium %%v >> "%LOG%"
+
+REM Verify installation succeeded
+echo   Verifying Appium installation...
+call appium -v > "%_APV_TMP%" 2>&1
+IF ERRORLEVEL 1 (
+    echo   FAIL  Appium was installed but appium -v still fails.
+    echo         Close this window and re-run install.bat.
+    echo   appium -v output:
+    type "%_APV_TMP%" 2>nul
+    echo   Full log: %LOG%
+    echo [4] FAIL: post-install verify >> "%LOG%"
+    del "%_APV_TMP%" >nul 2>&1
+    SET _FAIL=1
+    GOTO :step5
 )
+SET "_APPIUM_VER="
+FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
+    IF NOT DEFINED _APPIUM_VER SET "_APPIUM_VER=%%v"
+)
+del "%_APV_TMP%" >nul 2>&1
+echo   OK  Appium %_APPIUM_VER% installed.
+echo [4] PASS: Appium %_APPIUM_VER% >> "%LOG%"
 
 :step5
 REM ============================================================
@@ -204,7 +243,8 @@ REM [5] UiAutomator2 driver
 REM ============================================================
 echo.
 echo [5] UiAutomator2 driver...
-appium -v >nul 2>&1
+REM IMPORTANT: must use CALL -- appium is appium.cmd on Windows
+call appium -v >nul 2>&1
 IF ERRORLEVEL 1 (
     echo   SKIP  Appium unavailable -- skipping driver check.
     echo [5] SKIP >> "%LOG%"
