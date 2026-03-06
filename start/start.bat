@@ -66,6 +66,39 @@ REM ── PATH hardening (system fallback -- only if not using bundled) ──�
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
 
+REM ── Preflight: validate bundled runtime integrity ─────────────────────
+REM    Only runs when runtime\.ready exists (i.e. bundle was prepared).
+REM    Catches incomplete bootstrap before any real work starts.
+IF NOT EXIST "runtime\.ready" GOTO :preflight_done
+SET _PRE_OK=1
+IF NOT EXIST "runtime\python\python.exe" (
+    echo   ERROR: runtime\python\python.exe is missing.
+    SET _PRE_OK=0
+)
+IF NOT EXIST "runtime\node\node.exe" (
+    echo   ERROR: runtime\node\node.exe is missing.
+    SET _PRE_OK=0
+)
+IF NOT EXIST "runtime\appium\node_modules\.bin\appium.cmd" (
+    echo   ERROR: runtime\appium\node_modules\.bin\appium.cmd is missing.
+    SET _PRE_OK=0
+)
+IF NOT EXIST "runtime\android-sdk\platform-tools\adb.exe" (
+    echo   ERROR: runtime\android-sdk\platform-tools\adb.exe is missing.
+    SET _PRE_OK=0
+)
+IF "%_PRE_OK%"=="0" (
+    echo.
+    echo   The bundled runtime is incomplete or was not set up correctly.
+    echo   Please contact your IT admin and ask them to re-run:
+    echo     install\bootstrap.bat
+    echo.
+    pause
+    EXIT /B 1
+)
+echo   OK  Bundled runtime verified.
+:preflight_done
+
 REM ── Timestamp + logs ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
 SET "LOG=%TEMP%\spatch_start_%_TS%.log"
@@ -83,6 +116,19 @@ echo   +==============================================+
 echo.
 echo   Start log : %LOG%
 echo   Appium log: %APPIUM_LOG%
+echo.
+
+REM ── Runtime health summary ──────────────────────────────────────────
+SET _PY_SRC=system
+IF "%RUNTIME_PYTHON%"=="1" SET _PY_SRC=bundled
+SET _NODE_SRC=system
+IF EXIST "runtime\node\node.exe" SET _NODE_SRC=bundled
+SET _APP_SRC=system
+IF EXIST "runtime\appium\node_modules\.bin\appium.cmd" SET _APP_SRC=bundled
+SET _ADB_SRC=system
+IF NOT "%ANDROID_HOME%"=="" SET _ADB_SRC=bundled
+echo   Runtime:  Python=%_PY_SRC%  Node=%_NODE_SRC%  Appium=%_APP_SRC%  ADB=%_ADB_SRC%
+IF NOT "%ANDROID_HOME%"=="" echo   ANDROID_HOME=%ANDROID_HOME%
 echo.
 
 REM ============================================================
