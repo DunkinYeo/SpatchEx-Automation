@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >/dev/null
 cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Launch Test Environment
@@ -10,13 +11,6 @@ REM  Browser opens automatically when the server is ready.
 REM  Leave this window OPEN during the test.
 REM  To stop: run STOP.bat or close this window.
 REM ============================================================
-REM Keep window open on double-click
-IF "%SPATCHEX_RUNNING%"=="1" GOTO :run
-SET SPATCHEX_RUNNING=1
-cmd /k "%~f0"
-EXIT /B
-
-:run
 
 REM ── Timestamp + log ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
@@ -39,8 +33,7 @@ IF NOT EXIST "web\app.py" (
     echo   Run run.bat from inside the SpatchEx-Automation folder.
     echo.
     echo [run] FAIL: web\app.py not found >> "%LOG%"
-    echo   Press any key to close...
-    pause >nul
+    pause
     EXIT /B 1
 )
 
@@ -52,8 +45,7 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     echo   Please run install.bat first, then re-run run.bat.
     echo.
     echo [run] FAIL: .venv not found >> "%LOG%"
-    echo   Press any key to close...
-    pause >nul
+    pause
     EXIT /B 1
 )
 
@@ -79,7 +71,7 @@ IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=appium"
 
 REM ── [5] ADB device check (warn only -- does NOT block startup) ─
 echo   Checking connected devices...
-adb version >nul 2>&1
+adb version >/dev/null 2>&1
 IF ERRORLEVEL 1 (
     echo   WARN  ADB not found. Device check skipped.
     echo [run] WARN: adb not found >> "%LOG%"
@@ -106,7 +98,7 @@ echo [run] WARN: no device >> "%LOG%"
 REM ── [6] Start Appium (skip if already on port 4723) ──────────
 echo.
 echo   Checking Appium (port 4723)...
-netstat -an 2>nul | findstr ":4723 " >nul 2>&1
+netstat -an 2>/dev/null | findstr ":4723 " >/dev/null 2>&1
 IF ERRORLEVEL 1 GOTO :launch_appium
 echo   Appium already running on port 4723.
 echo [run] Appium already on 4723 >> "%LOG%"
@@ -124,22 +116,10 @@ echo.
 echo   Starting web server on port 5001...
 echo [run] Starting web server >> "%LOG%"
 
-IF NOT EXIST "web\app.py" (
-    echo   ERROR: web\app.py not found.
-    echo [run] FAIL: web\app.py missing at launch >> "%LOG%"
-    echo   Press any key to close...
-    pause >nul
-    EXIT /B 1
-)
-
-REM Background health check:
-REM   Polls http://127.0.0.1:5001 up to 30 times (1 second apart).
-REM   Opens browser ONLY after the server responds successfully.
-REM   NEVER opens the browser before the server is alive.
+REM Background health check: polls port 5001, opens browser only after server responds.
 start "" /B powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i-lt30;$i++){try{(New-Object Net.WebClient).DownloadString('http://127.0.0.1:5001')|Out-Null;Start-Process 'http://127.0.0.1:5001';break}catch{Start-Sleep 1}}"
 
-REM Web server runs in foreground -- keeps this window alive while running.
-REM Close this window or run STOP.bat to shut everything down.
+REM Web server runs in foreground -- keeps this window alive during the test.
 echo   Browser will open automatically when the server is ready.
 echo   Leave this window OPEN during the test.
 echo.
@@ -151,6 +131,5 @@ echo [run] Web server exited >> "%LOG%"
 echo   Web server has stopped.
 echo   Run STOP.bat to terminate any remaining services.
 echo.
-echo   Press any key to close...
-pause >nul
+pause
 EXIT /B 0

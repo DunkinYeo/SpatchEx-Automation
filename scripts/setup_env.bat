@@ -107,9 +107,12 @@ IF ERRORLEVEL 1 (
 )
 npm --version >nul 2>&1
 IF ERRORLEVEL 1 (
-    echo   WARN  Node.js found but npm not detected.
-    echo   Reinstall Node.js from https://nodejs.org/
-    echo [2] WARN: npm not found >> "%LOG%"
+    echo.
+    echo   ERROR  Node.js found but npm not detected.
+    echo   Appium requires npm. Reinstall Node.js from https://nodejs.org/
+    echo.
+    echo [2] FAIL: npm not found >> "%LOG%"
+    SET _FAIL=1
     GOTO :step3
 )
 FOR /F "tokens=*" %%v IN ('node --version 2^>^&1') DO echo   PASS  Node.js %%v
@@ -203,6 +206,11 @@ REM
 REM  NOTE: appium resolves to appium.cmd on Windows.
 REM  All appium calls MUST use CALL or the parent script exits.
 REM ============================================================
+IF "%_FAIL%"=="1" (
+    echo   SKIP  Appium check skipped due to earlier errors.
+    echo [4] SKIP: earlier failures >> "%LOG%"
+    GOTO :step5
+)
 echo.
 echo [4] Appium...
 echo [4] Checking appium... >> "%LOG%"
@@ -363,7 +371,8 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
 )
 REM activate.bat is a batch script -- CALL is correct here
 call .venv\Scripts\activate.bat
-pip install -r requirements.txt --quiet
+echo   Installing Python packages...
+pip install -r requirements.txt
 IF ERRORLEVEL 1 (
     echo.
     echo   ERROR  pip install failed.
