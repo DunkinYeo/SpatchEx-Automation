@@ -238,7 +238,6 @@ GOTO :step5
 :install_appium
 del "%_APV_TMP%" >nul 2>&1
 echo   Appium not found. Installing globally via npm...
-echo   PATH: %PATH%
 echo   (This may take 1-3 minutes)
 echo [4] Installing appium via npm... >> "%LOG%"
 
