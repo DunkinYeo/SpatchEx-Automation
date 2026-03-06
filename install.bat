@@ -34,6 +34,7 @@ echo.
 pause
 EXIT /B 1
 :root_ok
+SET "PYTHON_EXE=python"
 
 REM ── Timestamp + log ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
@@ -116,6 +117,9 @@ IF ERRORLEVEL 1 (
 FOR /F "tokens=*" %%v IN ('node --version 2^>^&1') DO echo   PASS  Node.js %%v
 FOR /F "tokens=*" %%v IN ('npm --version 2^>^&1') DO echo   PASS  npm v%%v
 echo [2] PASS >> "%LOG%"
+
+REM ── Inject Node.js global paths so appium.cmd is findable ────
+SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
 :step3
 REM ============================================================
@@ -299,7 +303,8 @@ IF EXIST ".venv\Scripts\activate.bat" (
     GOTO :pip_install
 )
 echo   Creating .venv...
-python -m venv .venv
+REM python.exe is a direct executable -- do NOT use CALL
+"%PYTHON_EXE%" -m venv .venv
 IF ERRORLEVEL 1 (
     echo.
     echo   ERROR  Failed to create .venv.
@@ -313,6 +318,17 @@ echo   .venv created.
 
 :pip_install
 echo   Installing Python packages...
+REM Verify activate.bat was created before calling it
+IF NOT EXIST ".venv\Scripts\activate.bat" (
+    echo.
+    echo   ERROR  .venv\Scripts\activate.bat not found.
+    echo   The virtual environment may be incomplete. Delete .venv and re-run.
+    echo.
+    echo [6] FAIL: activate.bat missing >> "%LOG%"
+    SET _FAIL=1
+    GOTO :step7
+)
+REM activate.bat is a batch script -- CALL is correct here
 call .venv\Scripts\activate.bat
 pip install -r requirements.txt --quiet
 IF ERRORLEVEL 1 (
