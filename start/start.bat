@@ -67,9 +67,13 @@ SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
 
 REM ── Preflight: validate bundled runtime integrity ─────────────────────
-REM    Only runs when runtime\.ready exists (i.e. bundle was prepared).
-REM    Catches incomplete bootstrap before any real work starts.
-IF NOT EXIST "runtime\.ready" GOTO :preflight_done
+REM    Case a) No runtime\ folder         → system mode, no checks needed
+REM    Case b) runtime\ exists, no .ready → incomplete bootstrap, warn+pause
+REM    Case c) runtime\ + .ready          → validate all 4 components
+IF NOT EXIST "runtime" GOTO :preflight_done
+IF NOT EXIST "runtime\.ready" GOTO :runtime_partial
+
+REM Case c: .ready exists -- validate all 4 components
 SET _PRE_OK=1
 IF NOT EXIST "runtime\python\python.exe" (
     echo   ERROR: runtime\python\python.exe is missing.
@@ -97,6 +101,22 @@ IF "%_PRE_OK%"=="0" (
     EXIT /B 1
 )
 echo   OK  Bundled runtime verified.
+GOTO :preflight_done
+
+REM Case b: runtime\ folder present but .ready is missing
+:runtime_partial
+echo.
+echo   WARNING: Incomplete bundled runtime detected.
+echo   The runtime\ folder exists but install\bootstrap.bat did not finish.
+echo.
+echo   To fix: ask your IT admin to run install\bootstrap.bat and let it
+echo   complete fully before using this tool.
+echo.
+echo   Press any key to continue with whatever tools are available,
+echo   or close this window to stop and fix the issue first.
+echo.
+pause >nul
+
 :preflight_done
 
 REM ── Timestamp + logs ─────────────────────────────────────────

@@ -221,31 +221,62 @@ SET /A _PASS+=1
 
 :test7
 REM ============================================================
-REM [7] ADB devices (connected device check)
+REM [7] ADB devices -- classify each device by its ADB status
+REM    device       = connected and fully authorized
+REM    unauthorized = connected but USB debugging popup not accepted
+REM    offline      = connected but ADB cannot communicate
+REM    (none)       = no USB device detected at all
 REM ============================================================
 echo.
 echo [7] Connected devices...
+echo   Raw output from adb devices:
 adb devices 2>nul
-SET _DEV=0
+SET _DEV_OK=0
+SET _DEV_UNAUTH=0
+SET _DEV_OFFLINE=0
 FOR /F "skip=1 tokens=2" %%S IN ('adb devices 2^>nul') DO (
-    IF "%%S"=="device" SET _DEV=1
+    IF "%%S"=="device"       SET _DEV_OK=1
+    IF "%%S"=="unauthorized" SET _DEV_UNAUTH=1
+    IF "%%S"=="offline"      SET _DEV_OFFLINE=1
 )
-IF "%_DEV%"=="0" (
-    echo   WARN  No Android device detected.
-    echo   Connect your phone and enable USB Debugging before running the test.
-    echo [7] WARN: no device connected >> "%LOG%"
-    SET /A _WARN+=1
-) ELSE (
-    echo   PASS  At least one Android device is connected.
-    echo [7] PASS: device detected >> "%LOG%"
+
+IF "%_DEV_OK%"=="1" (
+    echo   PASS  Device is connected and fully authorized.
+    echo [7] PASS: device authorized >> "%LOG%"
     SET /A _PASS+=1
+    GOTO :test8
 )
+IF "%_DEV_UNAUTH%"=="1" (
+    echo   WARN  Device found -- but USB Debugging is not authorized.
+    echo         On your phone, look for a popup:
+    echo         "Allow USB debugging from this computer?"  ^> tap ALLOW
+    echo         Then unplug and replug the USB cable.
+    echo [7] WARN: unauthorized >> "%LOG%"
+    SET /A _WARN+=1
+    GOTO :test8
+)
+IF "%_DEV_OFFLINE%"=="1" (
+    echo   WARN  Device found -- but ADB reports it as offline.
+    echo         Unplug the USB cable, wait 3 seconds, plug back in.
+    echo         If this repeats, try a different USB cable or port.
+    echo [7] WARN: offline >> "%LOG%"
+    SET /A _WARN+=1
+    GOTO :test8
+)
+echo   WARN  No Android device detected.
+echo         1. Connect your phone via USB cable.
+echo         2. On the phone: Settings ^> Developer Options ^> USB Debugging ON
+echo         3. Accept the "Allow USB debugging" popup on the phone.
+echo [7] WARN: no device >> "%LOG%"
+SET /A _WARN+=1
 
 :test8
 REM ============================================================
-REM [8] Web server smoke test (3-second launch check)
-REM    Starts web/app.py in background, waits 3s, checks port 5001.
-REM    Kills the process after the check.
+REM [8] Web server smoke test
+REM    Starts web/app.py via PowerShell (captures PID), waits 4s,
+REM    then checks both: port 5001 is open AND process is still alive.
+REM    Prints last 10 lines of startup output on failure.
+REM    Kills the test server before exiting.
 REM ============================================================
 echo.
 echo [8] Web server (smoke test)...
@@ -254,34 +285,75 @@ REM Check if port 5001 is already in use
 netstat -an 2>nul | findstr ":5001" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     echo   WARN  Port 5001 is already in use -- skipping smoke test.
-    echo   (Is the server already running?)
+    echo         Run STOP.bat first, then re-run selftest.bat for a clean test.
     echo [8] WARN: port 5001 already in use >> "%LOG%"
     SET /A _WARN+=1
     GOTO :summary
 )
 
-REM Start web server in background (brief launch only)
+REM Start web server using PowerShell Start-Process to capture PID
+SET "SMOKE_PID="
 SET "SMOKE_LOG=%TEMP%\selftest_web_%_TS%.log"
-start /B "" %PYTHON_EXE% web\app.py > "%SMOKE_LOG%" 2>&1
+FOR /F %%P IN ('powershell -NoProfile -Command "$p = Start-Process -FilePath ''%PYTHON_EXE%'' -ArgumentList ''web\app.py'' -NoNewWindow -PassThru; $p.Id"') DO SET "SMOKE_PID=%%P"
+echo [8] Started PID=%SMOKE_PID% >> "%LOG%"
+echo   Waiting 4 seconds for server to initialize...
 timeout /t 4 /nobreak >nul
 
-REM Check if port 5001 is now listening
+REM Check 1: port 5001 listening
+SET _PORT_OK=0
 netstat -an 2>nul | findstr ":5001" >nul 2>&1
-IF ERRORLEVEL 1 (
-    echo   FAIL  Web server did not start on port 5001 within 4 seconds.
-    echo   Check: %SMOKE_LOG%
-    echo [8] FAIL: port 5001 not listening >> "%LOG%"
-    SET /A _FAIL+=1
-) ELSE (
-    echo   PASS  Web server started and listening on port 5001.
-    echo [8] PASS >> "%LOG%"
-    SET /A _PASS+=1
+IF NOT ERRORLEVEL 1 SET _PORT_OK=1
+
+REM Check 2: process still alive (not crashed)
+SET _PROC_OK=0
+IF NOT "%SMOKE_PID%"=="" (
+    tasklist /FI "PID eq %SMOKE_PID%" 2>nul | findstr "%SMOKE_PID%" >nul 2>&1
+    IF NOT ERRORLEVEL 1 SET _PROC_OK=1
 )
 
-REM Kill the smoke test web server
+REM Evaluate: both checks must pass
+IF "%_PORT_OK%"=="1" IF "%_PROC_OK%"=="1" GOTO :smoke_pass
+
+REM Determine and print specific failure reason
+IF "%_PROC_OK%"=="0" IF "%_PORT_OK%"=="0" (
+    echo   FAIL  Web server process crashed before binding to port 5001.
+    echo         The process started (PID %SMOKE_PID%) but has already exited.
+    GOTO :smoke_fail_detail
+)
+IF "%_PORT_OK%"=="0" (
+    echo   FAIL  Process (PID %SMOKE_PID%) is running but port 5001 is not open.
+    echo         The server may have a startup error. Check the log below.
+    GOTO :smoke_fail_detail
+)
+REM _PORT_OK=1 but _PROC_OK=0
+echo   FAIL  Port 5001 is open but the Python process (PID %SMOKE_PID%) has exited.
+echo         Another process may be occupying port 5001.
+
+:smoke_fail_detail
+echo.
+IF EXIST "%SMOKE_LOG%" (
+    echo   Last 10 lines of startup output:
+    powershell -NoProfile -Command "Get-Content '%SMOKE_LOG%' -Tail 10 -ErrorAction SilentlyContinue"
+    echo   Full log: %SMOKE_LOG%
+) ELSE (
+    echo   No startup log captured.
+)
+echo [8] FAIL (PORT=%_PORT_OK% PROC=%_PROC_OK% PID=%SMOKE_PID%) >> "%LOG%"
+SET /A _FAIL+=1
+GOTO :smoke_cleanup
+
+:smoke_pass
+echo   PASS  Web server running (PID %SMOKE_PID%), port 5001 is open.
+echo [8] PASS (PID=%SMOKE_PID%) >> "%LOG%"
+SET /A _PASS+=1
+
+:smoke_cleanup
+REM Kill the smoke test server by PID first, then port fallback
+IF NOT "%SMOKE_PID%"=="" taskkill /PID %SMOKE_PID% /F >nul 2>&1
 FOR /F "tokens=5" %%P IN ('netstat -ano 2^>nul ^| findstr /R ":5001 "') DO (
     IF NOT "%%P"=="0" taskkill /PID %%P /F >nul 2>&1
 )
+timeout /t 1 /nobreak >nul
 
 REM ============================================================
 REM Summary
