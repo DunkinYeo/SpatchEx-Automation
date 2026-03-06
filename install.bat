@@ -1,4 +1,6 @@
 @echo off
+setlocal
+cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Environment Setup
 REM install.bat  (project root)
@@ -25,7 +27,6 @@ cmd /k "%~f0"
 EXIT /B
 
 :run
-cd /d "%~dp0"
 
 REM ── Verify project root ──────────────────────────────────────
 IF EXIST "web\app.py" GOTO :root_ok

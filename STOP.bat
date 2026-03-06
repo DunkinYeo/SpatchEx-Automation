@@ -1,4 +1,6 @@
 @echo off
+setlocal
+cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Stop All Services
 REM STOP.bat  (project root -- double-click to stop)
@@ -8,7 +10,6 @@ REM    - Appium server (port 4723)
 REM    - Python web server (port 5001)
 REM    - Any running test subprocess (main.py)
 REM ============================================================
-cd /d "%~dp0"
 
 echo.
 echo   +==============================================+

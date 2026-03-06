@@ -1,4 +1,6 @@
 @echo off
+setlocal
+cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Launch Test Environment
 REM run.bat  (project root)
@@ -15,7 +17,6 @@ cmd /k "%~f0"
 EXIT /B
 
 :run
-cd /d "%~dp0"
 
 REM ── Timestamp + log ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
