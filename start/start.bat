@@ -1,6 +1,13 @@
 @echo off
 REM ============================================================
-REM SpatchEx Long-Run Test -- Windows Start
+REM SpatchEx Long-Run Test -- Server Start
+REM start\start.bat
+REM
+REM Design rules:
+REM   - APPIUM_MODE=global|npx  (no multi-token command variables)
+REM   - All .cmd/.bat use CALL
+REM   - start "" http://URL  (no quotes around URL)
+REM   - Flat label flow; no nested IF blocks for error checks
 REM ============================================================
 cd /d "%~dp0.."
 
@@ -8,12 +15,14 @@ REM ── PATH hardening ──────────────────
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 SET "APPIUM_CMD=%APPDATA%\npm\appium.cmd"
 
-REM ── Timestamp ────────────────────────────────────────────────
+REM ── Timestamp + logs ─────────────────────────────────────────
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
-
-REM ── Log folder ───────────────────────────────────────────────
-IF NOT EXIST "artifacts\logs" mkdir "artifacts\logs"
+SET "LOG=%TEMP%\spatch_start_%_TS%.log"
 SET "APPIUM_LOG=%TEMP%\spatch_appium_%_TS%.log"
+echo SpatchEx start.bat started %DATE% %TIME% > "%LOG%"
+
+SET START_FAILED=0
+SET APPIUM_MODE=
 
 REM ── Banner ───────────────────────────────────────────────────
 echo.
@@ -21,110 +30,300 @@ echo   +==============================================+
 echo   ^|   SpatchEx Long-Run Test -- Start           ^|
 echo   +==============================================+
 echo.
+echo   Start log : %LOG%
+echo   Appium log: %APPIUM_LOG%
+echo.
 
 REM ============================================================
 REM [1] Python
+REM ============================================================
+echo [1] Python...
+echo [1] Python >> "%LOG%"
 python --version >nul 2>&1
-IF ERRORLEVEL 1 (
-  echo   ERROR: Python not found. Run install\install.bat first.
-  pause
-  exit /b 1
-)
+IF ERRORLEVEL 1 GOTO :py_fail
 FOR /F "tokens=*" %%v IN ('python --version 2^>^&1') DO echo   OK  %%v
+echo [1] OK >> "%LOG%"
+GOTO :step2
+
+:py_fail
+echo.
+echo   ERROR: Python not found.
+echo   Run install\install.bat first.
+echo [1] FAIL >> "%LOG%"
+SET START_FAILED=1
+GOTO :show_fail
 
 REM ============================================================
 REM [2] Virtual environment
-IF NOT EXIST ".venv\Scripts\activate.bat" (
-  echo   ERROR: Virtual environment not found.
-  echo   Run install\install.bat first.
-  pause
-  exit /b 1
-)
-call .venv\Scripts\activate.bat
+REM ============================================================
+:step2
+echo.
+echo [2] Virtual environment...
+echo [2] venv >> "%LOG%"
+IF NOT EXIST ".venv\Scripts\activate.bat" GOTO :venv_fail
+call ".venv\Scripts\activate.bat"
 echo   OK  .venv activated
+echo [2] OK >> "%LOG%"
+GOTO :step3
+
+:venv_fail
+echo.
+echo   ERROR: .venv not found.
+echo   Run install\install.bat first.
+echo [2] FAIL >> "%LOG%"
+SET START_FAILED=1
+GOTO :show_fail
 
 REM ============================================================
-REM [3] Appium — explicit path, then PATH, then npx
-SET APPIUM_RUN=
-IF EXIST "%APPIUM_CMD%" (
-  "%APPIUM_CMD%" -v >nul 2>&1
-  IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
+REM [3] Appium  (APPIUM_MODE = global | npx)
+REM   3a  %APPDATA%\npm\appium.cmd  (most reliable on Windows)
+REM   3b  PATH-based appium
+REM   3c  npm install -g appium
+REM   3d  re-check after install
+REM   3e  npx -y appium@3 fallback
+REM ============================================================
+:step3
+echo.
+echo [3] Appium...
+echo [3] Appium >> "%LOG%"
+SET APPIUM_MODE=
+
+REM 3a
+IF NOT EXIST "%APPIUM_CMD%" GOTO :chk3b
+echo   Found: %APPIUM_CMD% >> "%LOG%"
+call "%APPIUM_CMD%" -v >nul 2>&1
+IF ERRORLEVEL 1 GOTO :chk3b
+SET APPIUM_MODE=global
+GOTO :appium_found
+
+REM 3b
+:chk3b
+call appium -v >nul 2>&1
+IF ERRORLEVEL 1 GOTO :do_npm_install
+SET APPIUM_MODE=global
+GOTO :appium_found
+
+REM 3c
+:do_npm_install
+echo   Not found. Installing via npm (this can take a few minutes)...
+echo [3c] npm install appium >> "%LOG%"
+IF EXIST "%ProgramFiles%\nodejs\npm.cmd" (
+    call "%ProgramFiles%\nodejs\npm.cmd" i --location=global appium
+) ELSE (
+    call npm i --location=global appium
 )
-IF "%APPIUM_RUN%"=="" (
-  appium -v >nul 2>&1
-  IF NOT ERRORLEVEL 1 SET APPIUM_RUN=appium
-)
-IF "%APPIUM_RUN%"=="" (
-  SET "APPIUM_RUN=npx -y appium@3"
-  npx -y appium@3 -v >nul 2>&1
-  IF ERRORLEVEL 1 (
-    echo   ERROR: Appium not found. Run install\install.bat first.
-    pause
-    exit /b 1
-  )
-)
-FOR /F "tokens=*" %%v IN ('%APPIUM_RUN% -v 2^>nul') DO echo   OK  Appium %%v
+echo [3c] npm exit=%ERRORLEVEL% >> "%LOG%"
+
+REM 3d re-check explicit path
+IF NOT EXIST "%APPIUM_CMD%" GOTO :rechk3d_path
+call "%APPIUM_CMD%" -v >nul 2>&1
+IF ERRORLEVEL 1 GOTO :rechk3d_path
+SET APPIUM_MODE=global
+GOTO :appium_found
+
+:rechk3d_path
+call appium -v >nul 2>&1
+IF ERRORLEVEL 1 GOTO :npx_fallback
+SET APPIUM_MODE=global
+GOTO :appium_found
+
+REM 3e npx fallback
+:npx_fallback
+echo   Global install unavailable. Trying npx fallback...
+echo   (First run downloads Appium -- please wait)
+call npx -y appium@3 -v
+IF ERRORLEVEL 1 GOTO :appium_fail
+SET APPIUM_MODE=npx
+echo   OK  Appium (via npx)
+GOTO :step3_done
+
+:appium_fail
+echo.
+echo   ERROR: Appium is not available.
+echo   Run install\install.bat and try again.
+echo [3] FAIL >> "%LOG%"
+SET START_FAILED=1
+GOTO :show_fail
+
+:appium_found
+call appium -v
+:step3_done
+echo [3] OK  APPIUM_MODE=%APPIUM_MODE% >> "%LOG%"
 
 REM ============================================================
 REM [4] UiAutomator2 driver
+REM ============================================================
+echo.
+echo [4] UiAutomator2 driver...
+echo [4] UiAutomator2 >> "%LOG%"
+
 SET "DRIVER_TMP=%TEMP%\appium_drivers_%_TS%.txt"
-%APPIUM_RUN% driver list --installed > "%DRIVER_TMP%" 2>&1
+echo   Checking installed drivers...
+
+IF "%APPIUM_MODE%"=="npx" GOTO :list_npx
+call appium driver list --installed > "%DRIVER_TMP%" 2>&1
+GOTO :list_done
+
+:list_npx
+call npx -y appium@3 driver list --installed > "%DRIVER_TMP%" 2>&1
+
+:list_done
+type "%DRIVER_TMP%"
 findstr /i "uiautomator2" "%DRIVER_TMP%" >nul 2>&1
-IF ERRORLEVEL 1 (
-  echo   ERROR: UiAutomator2 driver not installed.
-  echo   Run: appium driver install uiautomator2
-  pause
-  exit /b 1
-)
-echo   OK  UiAutomator2 driver installed
+IF ERRORLEVEL 1 GOTO :install_uia2
+GOTO :uia2_ok
+
+:install_uia2
+echo   Installing uiautomator2 driver (this can take a few minutes)...
+IF "%APPIUM_MODE%"=="npx" GOTO :install_uia2_npx
+call appium driver install uiautomator2
+GOTO :uia2_done
+
+:install_uia2_npx
+call npx -y appium@3 driver install uiautomator2
+
+:uia2_done
+SET _UIA2_ERR=%ERRORLEVEL%
+echo [4] driver install exit=%_UIA2_ERR% >> "%LOG%"
+IF "%_UIA2_ERR%"=="0" GOTO :uia2_ok
+GOTO :uia2_fail
+
+:uia2_fail
+echo.
+echo   ERROR: UiAutomator2 install failed (exit %_UIA2_ERR%).
+echo   Try running as Administrator.
+echo   See log: %LOG%
+echo [4] FAIL >> "%LOG%"
+SET START_FAILED=1
+GOTO :show_fail
+
+:uia2_ok
+echo   OK  UiAutomator2 ready
+echo [4] OK >> "%LOG%"
 
 REM ============================================================
-REM [5] ADB device check (warning only — device may connect later)
+REM [5] Android device check  (warning only -- does not stop)
+REM ============================================================
 echo.
-echo   Connected Android devices:
+echo [5] Android device check...
+echo [5] ADB >> "%LOG%"
 adb devices 2>nul
-SET DEVICE_FOUND=0
+SET _DEV=0
 FOR /F "skip=1 tokens=2" %%S IN ('adb devices 2^>nul') DO (
-  IF "%%S"=="device" SET DEVICE_FOUND=1
+    IF "%%S"=="device" SET _DEV=1
 )
-IF "%DEVICE_FOUND%"=="0" (
-  echo.
-  echo   WARNING: No authorized device detected.
-  echo   Connect via USB and enable USB Debugging ^(allow on device^).
+IF "%_DEV%"=="0" (
+    echo.
+    echo   WARNING: No Android device detected.
+    echo   Connect your phone via USB and enable USB Debugging.
+    echo   You can start the Web UI and connect the device later.
+    echo [5] WARNING no device >> "%LOG%"
+) ELSE (
+    echo   OK  device connected
+    echo [5] OK >> "%LOG%"
 )
 echo.
 
 REM ============================================================
-REM [6] Appium server — start in new window if not already running
+REM [6] Appium server -- start in new window if not on port 4723
+REM ============================================================
+echo [6] Appium server...
+echo [6] Appium server >> "%LOG%"
 netstat -an 2>nul | findstr ":4723" >nul 2>&1
 IF NOT ERRORLEVEL 1 (
-  echo   Appium already running on port 4723.
-  GOTO :appium_running
+    echo   Already running on port 4723.
+    echo [6] already running >> "%LOG%"
+    GOTO :step7
 )
 
-REM Write a temp launcher so quoting is never an issue
 SET "ALAUNCHER=%TEMP%\spatch_appium_%_TS%.bat"
 (echo @echo off) > "%ALAUNCHER%"
 (echo cd /d "%CD%") >> "%ALAUNCHER%"
-(echo %APPIUM_RUN% --relaxed-security --log "%APPIUM_LOG%") >> "%ALAUNCHER%"
+IF "%APPIUM_MODE%"=="npx" (
+    (echo call npx -y appium@3 --relaxed-security --log "%APPIUM_LOG%") >> "%ALAUNCHER%"
+) ELSE (
+    (echo call appium --relaxed-security --log "%APPIUM_LOG%") >> "%ALAUNCHER%"
+)
 start "Appium Server" cmd /k "%ALAUNCHER%"
-
-echo   Appium server starting...
-echo   Log: %APPIUM_LOG%
-timeout /t 3 /nobreak >nul
-
-:appium_running
+echo   Appium server starting in new window...
+echo   Appium log: %APPIUM_LOG%
+echo [6] Appium started >> "%LOG%"
+timeout /t 4 /nobreak >nul
 
 REM ============================================================
-REM [7] Open browser + start Web UI in current window
-start "" "http://127.0.0.1:5001"
+REM [7] Background browser waiter
+REM     Polls port 5001 (max 30 s), then opens browser.
+REM     Runs concurrently with the web server started below.
+REM ============================================================
+:step7
+SET "BWAITER=%TEMP%\spatch_browser_%_TS%.bat"
+(echo @echo off)                                                         > "%BWAITER%"
+(echo SET _W=0)                                                         >> "%BWAITER%"
+(echo :wloop)                                                           >> "%BWAITER%"
+(echo netstat -an 2^>nul ^| find ":5001" ^>nul 2^>^&1)                >> "%BWAITER%"
+(echo IF NOT ERRORLEVEL 1 GOTO :open_browser)                          >> "%BWAITER%"
+(echo timeout /t 1 /nobreak ^>nul)                                     >> "%BWAITER%"
+(echo SET /A _W+=1)                                                     >> "%BWAITER%"
+(echo IF %%_W%% LSS 30 GOTO :wloop)                                    >> "%BWAITER%"
+(echo :open_browser)                                                    >> "%BWAITER%"
+(echo start "" http://127.0.0.1:5001)                                  >> "%BWAITER%"
+start /B cmd /c "%BWAITER%"
+echo [7] browser waiter started >> "%LOG%"
 
+REM ============================================================
+REM [8] Web backend -- foreground, Ctrl+C to stop
+REM     stderr appended to log so crash details are captured.
+REM ============================================================
+echo.
 echo   +==============================================+
-echo   ^|   Web UI: http://127.0.0.1:5001            ^|
-echo   ^|   Logs:   artifacts\logs\                  ^|
-echo   ^|   Stop:   Ctrl+C  (close Appium window too)^|
+echo   ^|   Web UI : http://127.0.0.1:5001           ^|
+echo   ^|   Appium : http://127.0.0.1:4723           ^|
+echo   ^|   Stop   : Ctrl+C  (also close Appium win) ^|
 echo   +==============================================+
 echo.
+echo [8] python web\app.py >> "%LOG%"
+python web\app.py 2>> "%LOG%"
+SET _WEB_ERR=%ERRORLEVEL%
+echo [8] web server exited=%_WEB_ERR% >> "%LOG%"
 
-python web\app.py
-pause
+REM Exit 0 or 1 = normal stop / Ctrl+C
+IF "%_WEB_ERR%"=="0" GOTO :done_ok
+IF "%_WEB_ERR%"=="1" GOTO :done_ok
+
+REM Any other code = likely crash -- show last 50 log lines
+echo.
+echo   ------------------------------------
+echo   Web server crashed (exit %_WEB_ERR%).
+echo   Showing last 50 log lines:
+echo   ------------------------------------
+powershell -NoProfile -Command "if (Test-Path '%LOG%') { Get-Content '%LOG%' -Tail 50 } else { Write-Host 'Log not found.' }"
+echo   ------------------------------------
+echo.
+SET START_FAILED=1
+GOTO :show_fail
+
+REM ============================================================
+REM Failure handler -- show log tail then fall into :done_ok
+REM ============================================================
+:show_fail
+echo.
+echo   ---- Last 20 lines from log ----
+powershell -NoProfile -Command "if (Test-Path '%LOG%') { Get-Content '%LOG%' -Tail 20 } else { Write-Host 'Log not found.' }"
+echo   ---- End of log ----
+echo.
+
+:done_ok
+echo SpatchEx start.bat ended %DATE% %TIME% >> "%LOG%"
+echo.
+IF "%START_FAILED%"=="1" (
+    echo   +==============================================+
+    echo   ^|   Start did NOT complete.                  ^|
+    echo   +==============================================+
+    echo.
+    echo   Full log: %LOG%
+    echo.
+    echo   Press any key to close...
+    pause >nul
+    EXIT /B 1
+)
+EXIT /B 0

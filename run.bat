@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================
 REM SpatchEx Long-Run Test -- Launcher
-REM run.bat (project root)
+REM run.bat  (project root)
 REM ============================================================
 REM Keep window open: re-launch inside cmd /k on direct double-click
 IF "%SPATCHEX_RUNNING%"=="1" GOTO :run
@@ -28,41 +28,47 @@ echo.
 echo   Log: %LOG%
 echo.
 
-REM ── Check .venv → auto-install if missing ───────────────────
-IF EXIST ".venv" GOTO :start_server
+REM ── Check .venv -> auto-install if missing ───────────────────
+IF EXIST ".venv\Scripts\activate.bat" GOTO :launch
 
-echo   First run detected. Installing required tools (5-15 min)...
+echo   First run detected. Running installer (5-15 min)...
 echo   (Do not close this window)
 echo.
-echo First run: starting install >> "%LOG%"
+echo [run] First run: invoking installer >> "%LOG%"
 call install\install.bat
 IF ERRORLEVEL 1 GOTO :install_fail
-echo Install completed OK >> "%LOG%"
-GOTO :start_server
+echo [run] Installer completed OK >> "%LOG%"
+GOTO :launch
 
 :install_fail
 echo.
-echo   ERROR: Setup did not complete. See messages above.
+echo   +==========================================+
+echo   ^|   ERROR: Installer did not complete.   ^|
+echo   +==========================================+
+echo.
+echo   See errors above.
 echo   Full log: %LOG%
+echo.
+echo [run] FAIL: installer returned error >> "%LOG%"
 SET RUN_FAILED=1
 GOTO :done
 
-REM ── Start Appium + Web UI (start.bat also opens browser) ────
-:start_server
-echo   Starting server...
-echo Starting server >> "%LOG%"
+REM ── Start Appium + Web UI via start\start.bat ────────────────
+:launch
+echo [run] Calling start\start.bat >> "%LOG%"
 call start\start.bat
-IF ERRORLEVEL 1 GOTO :start_fail
+SET _START_ERR=%ERRORLEVEL%
+echo [run] start.bat returned %_START_ERR% >> "%LOG%"
+IF "%_START_ERR%"=="0" GOTO :done
 
-REM ── (Defensive) Re-open browser after server exits ───────────
-timeout /t 2 /nobreak >nul
-start "" http://127.0.0.1:5001
-GOTO :done
-
-:start_fail
 echo.
-echo   ERROR: Server failed to start. See messages above.
+echo   +==========================================+
+echo   ^|   ERROR: Server startup failed.         ^|
+echo   +==========================================+
+echo.
+echo   See errors above.
 echo   Full log: %LOG%
+echo.
 SET RUN_FAILED=1
 GOTO :done
 
@@ -70,11 +76,6 @@ GOTO :done
 echo SpatchEx run ended %DATE% %TIME% >> "%LOG%"
 echo.
 IF "%RUN_FAILED%"=="1" (
-    echo   +==========================================+
-    echo   ^|   Run did NOT complete.                ^|
-    echo   ^|   See errors above.                    ^|
-    echo   +==========================================+
-    echo.
     echo   Full log: %LOG%
     echo.
 )
