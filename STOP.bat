@@ -1,13 +1,18 @@
 @echo off
 REM ============================================================
-REM SpatchEx Long-Run Test -- Stop All Services
+REM SpatchEx -- Stop All Services
 REM STOP.bat  (project root -- double-click to stop)
+REM
+REM  Terminates:
+REM    - Appium server (port 4723)
+REM    - Python web server (port 5001)
+REM    - Any running test subprocess (main.py)
 REM ============================================================
 cd /d "%~dp0"
 
 echo.
 echo   +==============================================+
-echo   ^|   SpatchEx Long-Run Test -- Stopping...    ^|
+echo   ^|   SpatchEx -- Stopping All Services...     ^|
 echo   +==============================================+
 echo.
 
