@@ -32,30 +32,30 @@ echo   Log: %LOG%
 echo.
 
 REM ── [1] Verify project root ──────────────────────────────────
-IF EXIST "web\app.py" GOTO :check_venv
-echo.
-echo   ERROR: web\app.py not found.
-echo   Run run.bat from inside the SpatchEx-Automation folder.
-echo.
-echo [run] FAIL: web\app.py not found >> "%LOG%"
-echo   Press any key to close...
-pause >nul
-EXIT /B 1
+IF NOT EXIST "web\app.py" (
+    echo.
+    echo   ERROR: web\app.py not found.
+    echo   Run run.bat from inside the SpatchEx-Automation folder.
+    echo.
+    echo [run] FAIL: web\app.py not found >> "%LOG%"
+    echo   Press any key to close...
+    pause >nul
+    EXIT /B 1
+)
 
-:check_venv
-REM ── [2] Check .venv -- guide user to install.bat if missing ──
-IF EXIST ".venv\Scripts\activate.bat" GOTO :activate_venv
-echo.
-echo   ERROR: Python environment not set up.
-echo.
-echo   Please run install.bat first, then re-run run.bat.
-echo.
-echo [run] FAIL: .venv not found >> "%LOG%"
-echo   Press any key to close...
-pause >nul
-EXIT /B 1
+REM ── [2] Check .venv -- guide to install.bat if missing ───────
+IF NOT EXIST ".venv\Scripts\activate.bat" (
+    echo.
+    echo   ERROR: Python environment not set up.
+    echo.
+    echo   Please run install.bat first, then re-run run.bat.
+    echo.
+    echo [run] FAIL: .venv not found >> "%LOG%"
+    echo   Press any key to close...
+    pause >nul
+    EXIT /B 1
+)
 
-:activate_venv
 REM ── [3] Activate virtual environment ─────────────────────────
 echo   Activating Python environment...
 call .venv\Scripts\activate.bat
@@ -91,26 +91,27 @@ FOR /F "skip=1 tokens=2" %%S IN ('adb devices 2^>nul') DO (
 IF "%_DEV_OK%"=="1" (
     echo   PASS  Android device connected and authorized.
     echo [run] device connected >> "%LOG%"
-) ELSE (
-    echo.
-    echo   WARN  No Android device detected.
-    echo         Connect your phone via USB and enable USB Debugging.
-    echo         The web UI will still open. Connect the device before
-    echo         clicking "Start Test" in the browser.
-    echo.
-    echo [run] WARN: no device >> "%LOG%"
+    GOTO :start_appium
 )
+echo.
+echo   WARN  No Android device detected.
+echo         Connect your phone via USB and enable USB Debugging.
+echo         The web UI will still open. Connect the device before
+echo         clicking "Start Test" in the browser.
+echo.
+echo [run] WARN: no device >> "%LOG%"
 
 :start_appium
 REM ── [6] Start Appium (skip if already on port 4723) ──────────
 echo.
 echo   Checking Appium (port 4723)...
 netstat -an 2>nul | findstr ":4723 " >nul 2>&1
-IF NOT ERRORLEVEL 1 (
-    echo   Appium already running on port 4723.
-    echo [run] Appium already on 4723 >> "%LOG%"
-    GOTO :start_web
-)
+IF ERRORLEVEL 1 GOTO :launch_appium
+echo   Appium already running on port 4723.
+echo [run] Appium already on 4723 >> "%LOG%"
+GOTO :start_web
+
+:launch_appium
 echo   Starting Appium server...
 echo [run] Starting Appium >> "%LOG%"
 start "SpatchEx - Appium" cmd /c "%APPIUM_CMD% --relaxed-security"
@@ -122,13 +123,21 @@ echo.
 echo   Starting web server on port 5001...
 echo [run] Starting web server >> "%LOG%"
 
+IF NOT EXIST "web\app.py" (
+    echo   ERROR: web\app.py not found.
+    echo [run] FAIL: web\app.py missing at launch >> "%LOG%"
+    echo   Press any key to close...
+    pause >nul
+    EXIT /B 1
+)
+
 REM Background health check:
 REM   Polls http://127.0.0.1:5001 up to 30 times (1 second apart).
-REM   Opens the browser ONLY after the server responds successfully.
+REM   Opens browser ONLY after the server responds successfully.
 REM   NEVER opens the browser before the server is alive.
 start "" /B powershell -NoProfile -ExecutionPolicy Bypass -Command "for($i=0;$i-lt30;$i++){try{(New-Object Net.WebClient).DownloadString('http://127.0.0.1:5001')|Out-Null;Start-Process 'http://127.0.0.1:5001';break}catch{Start-Sleep 1}}"
 
-REM Web server runs in foreground -- this keeps the window alive.
+REM Web server runs in foreground -- keeps this window alive while running.
 REM Close this window or run STOP.bat to shut everything down.
 echo   Browser will open automatically when the server is ready.
 echo   Leave this window OPEN during the test.

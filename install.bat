@@ -7,9 +7,9 @@ REM  Run this ONCE before using run.bat.
 REM  Sets up Python venv, Appium, ADB, and all dependencies.
 REM
 REM  Steps:
-REM    [1] Python 3.10+ check
-REM    [2] Node.js / npm check
-REM    [3] ADB / Android SDK check
+REM    [1] Python 3.10+
+REM    [2] Node.js / npm
+REM    [3] ADB / Android SDK
 REM    [4] Appium installation
 REM    [5] UiAutomator2 driver
 REM    [6] Python virtual environment + packages
@@ -124,42 +124,42 @@ REM ============================================================
 echo.
 echo [3] ADB / Android SDK...
 adb version >nul 2>&1
-IF NOT ERRORLEVEL 1 GOTO :adb_found
+IF ERRORLEVEL 1 GOTO :adb_try_detect
+FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
+    echo   PASS  %%a %%b %%c
+    echo [3] PASS: %%a %%b %%c >> "%LOG%"
+)
+GOTO :step4
 
-REM ADB not in PATH -- try common SDK locations
-SET "_ADB_FOUND=0"
+:adb_try_detect
 IF EXIST "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
     SET "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
     SET "ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk"
     SET "PATH=%LOCALAPPDATA%\Android\Sdk\platform-tools;%PATH%"
-    SET "_ADB_FOUND=1"
-    echo   INFO  Found Android SDK at %LOCALAPPDATA%\Android\Sdk
+    GOTO :adb_found_path
 )
-IF "%_ADB_FOUND%"=="0" IF EXIST "%ProgramFiles%\Android\android-sdk\platform-tools\adb.exe" (
+IF EXIST "%ProgramFiles%\Android\android-sdk\platform-tools\adb.exe" (
     SET "ANDROID_HOME=%ProgramFiles%\Android\android-sdk"
     SET "ANDROID_SDK_ROOT=%ProgramFiles%\Android\android-sdk"
     SET "PATH=%ProgramFiles%\Android\android-sdk\platform-tools;%PATH%"
-    SET "_ADB_FOUND=1"
-    echo   INFO  Found Android SDK at %ProgramFiles%\Android\android-sdk
+    GOTO :adb_found_path
 )
-IF "%_ADB_FOUND%"=="0" (
-    echo   WARN  ADB not detected.
-    echo.
-    echo         Options:
-    echo           A) Install Android Studio and add SDK Platform Tools to PATH.
-    echo           B) Run install\bootstrap.bat to download a bundled ADB.
-    echo.
-    echo         Device connection will not work without ADB.
-    echo         You can continue setup and add ADB later.
-    echo.
-    echo [3] WARN: adb not found >> "%LOG%"
-    GOTO :step4
-)
+echo   WARN  ADB not detected.
+echo.
+echo         Options:
+echo           A) Install Android Studio and add SDK Platform Tools to PATH.
+echo           B) Run install\bootstrap.bat to download a bundled ADB.
+echo.
+echo         Device connection will not work without ADB.
+echo         You can continue setup and add ADB later.
+echo.
+echo [3] WARN: adb not found >> "%LOG%"
+GOTO :step4
 
-:adb_found
+:adb_found_path
 FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
-    echo   PASS  %%a %%b %%c
-    echo [3] PASS: %%a %%b %%c >> "%LOG%"
+    echo   PASS  %%a %%b %%c  [found at %ANDROID_HOME%]
+    echo [3] PASS >> "%LOG%"
 )
 
 :step4
@@ -169,8 +169,14 @@ REM ============================================================
 echo.
 echo [4] Appium...
 appium -v >nul 2>&1
-IF NOT ERRORLEVEL 1 GOTO :appium_ok
+IF ERRORLEVEL 1 GOTO :install_appium
+FOR /F "tokens=*" %%v IN ('appium -v 2^>^&1') DO (
+    echo   PASS  Appium %%v
+    echo [4] PASS: Appium %%v >> "%LOG%"
+)
+GOTO :step5
 
+:install_appium
 echo   Appium not found. Installing globally via npm...
 echo   (This may take 1-3 minutes)
 echo [4] Installing appium... >> "%LOG%"
@@ -187,10 +193,8 @@ IF ERRORLEVEL 1 (
     SET _FAIL=1
     GOTO :step5
 )
-
-:appium_ok
 FOR /F "tokens=*" %%v IN ('appium -v 2^>^&1') DO (
-    echo   PASS  Appium %%v
+    echo   PASS  Appium %%v installed.
     echo [4] PASS: Appium %%v >> "%LOG%"
 )
 
@@ -209,12 +213,13 @@ IF ERRORLEVEL 1 (
 SET "_DRIVER_TMP=%TEMP%\spatch_drivers_%_TS%.txt"
 call appium driver list --installed > "%_DRIVER_TMP%" 2>&1
 findstr /i "uiautomator2" "%_DRIVER_TMP%" >nul 2>&1
-IF NOT ERRORLEVEL 1 (
-    echo   PASS  UiAutomator2 driver already installed.
-    echo [5] PASS >> "%LOG%"
-    del "%_DRIVER_TMP%" >nul 2>&1
-    GOTO :step6
-)
+IF ERRORLEVEL 1 GOTO :install_driver
+echo   PASS  UiAutomator2 driver already installed.
+echo [5] PASS >> "%LOG%"
+del "%_DRIVER_TMP%" >nul 2>&1
+GOTO :step6
+
+:install_driver
 del "%_DRIVER_TMP%" >nul 2>&1
 echo   UiAutomator2 not found. Installing...
 echo   (This may take 1-3 minutes)
