@@ -54,12 +54,70 @@ echo   Activating Python environment...
 call .venv\Scripts\activate.bat
 echo [run] .venv activated >> "%LOG%"
 
-REM ── [4] Bundled runtime detection ────────────────────────────
+REM ── [4] Android SDK detection ────────────────────────────────
+REM Case A: bundled SDK inside runtime\
 IF EXIST "runtime\android-sdk\platform-tools\adb.exe" (
     SET "ANDROID_HOME=%CD%\runtime\android-sdk"
     SET "ANDROID_SDK_ROOT=%CD%\runtime\android-sdk"
     SET "PATH=%CD%\runtime\android-sdk\platform-tools;%PATH%"
+    GOTO :sdk_ready
 )
+
+REM Case B-1: ANDROID_HOME already set and valid
+IF NOT "%ANDROID_HOME%"=="" (
+    IF EXIST "%ANDROID_HOME%\platform-tools\adb.exe" (
+        SET "ANDROID_SDK_ROOT=%ANDROID_HOME%"
+        GOTO :sdk_ready
+    )
+)
+
+REM Case B-2: ANDROID_SDK_ROOT already set and valid
+IF NOT "%ANDROID_SDK_ROOT%"=="" (
+    IF EXIST "%ANDROID_SDK_ROOT%\platform-tools\adb.exe" (
+        SET "ANDROID_HOME=%ANDROID_SDK_ROOT%"
+        GOTO :sdk_ready
+    )
+)
+
+REM Case B-3: locate adb via PATH, derive SDK root from its location
+SET "_ADB_PATH="
+FOR /F "usebackq tokens=*" %%A IN (`where adb 2^>nul`) DO (
+    IF NOT DEFINED _ADB_PATH SET "_ADB_PATH=%%A"
+)
+IF NOT "%_ADB_PATH%"=="" (
+    REM %%~dpA = drive+path of adb.exe  e.g. C:\...\platform-tools\
+    FOR %%A IN ("%_ADB_PATH%") DO SET "_PTDIR=%%~dpA"
+    REM Strip trailing backslash so the next FOR sees it as a file token
+    SET "_PTDIR=%_PTDIR:~0,-1%"
+    FOR %%A IN ("%_PTDIR%") DO SET "_SDK_ROOT=%%~dpA"
+    REM Strip trailing backslash from SDK root
+    SET "_SDK_ROOT=%_SDK_ROOT:~0,-1%"
+    SET "ANDROID_HOME=%_SDK_ROOT%"
+    SET "ANDROID_SDK_ROOT=%_SDK_ROOT%"
+    GOTO :sdk_ready
+)
+
+REM No SDK found -- cannot proceed
+echo.
+echo   ERROR  Android SDK not found.
+echo.
+echo   ANDROID_HOME and ANDROID_SDK_ROOT are not set,
+echo   and adb was not found in PATH.
+echo.
+echo   Please install Android Studio or the Android command-line tools,
+echo   then re-run run.bat.
+echo   Download: https://developer.android.com/studio
+echo.
+echo [run] FAIL: Android SDK not found >> "%LOG%"
+pause
+EXIT /B 1
+
+:sdk_ready
+echo   ANDROID_HOME=%ANDROID_HOME%
+echo   ANDROID_SDK_ROOT=%ANDROID_SDK_ROOT%
+echo [run] ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
+
+REM ── Bundled Node / Appium (optional, falls back to global) ───
 IF EXIST "runtime\node\node.exe" (
     SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"
 )
