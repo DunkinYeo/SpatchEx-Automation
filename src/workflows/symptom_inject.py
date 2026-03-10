@@ -48,6 +48,13 @@ def inject_symptom_event(
         d.screenshot("inject_before")
         last_step = "before_screenshot"
 
+        # ── 2b. Dismiss any blocking popup/dialog ────────────────────
+        confirm = d.sel.get("confirm_text")
+        if confirm and d.is_visible_text(confirm):
+            d.reporter.log_event("popup_dismissed_before_inject", {})
+            d.tap_text(confirm, timeout=5, contains=False)
+            d.wait_idle(0.5)
+
         # ── 3. Open symptom picker ────────────────────────────────────
         symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
         d.tap_text(symptom_add, timeout=15, contains=True)
