@@ -29,7 +29,9 @@ _ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS_DIR = _ROOT / "artifacts"
 
 
-def save_failure_artifacts(driver, exception: Exception) -> Path:
+def save_failure_artifacts(
+    driver, exception: Exception, label: str = "runtime_failure"
+) -> Path:
     """
     Collect failure evidence into a new timestamped folder.
 
@@ -37,12 +39,13 @@ def save_failure_artifacts(driver, exception: Exception) -> Path:
         driver:    Appium WebDriver instance, or an AndroidDriver wrapper
                    that exposes the underlying WebDriver as `.drv`.
         exception: The exception that caused the test to fail.
+        label:     Short name embedded in the folder name for easy identification.
 
     Returns:
         Path to the created artifact folder.
     """
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = ARTIFACTS_DIR / ts
+    out = ARTIFACTS_DIR / f"{ts}_{label}"
     out.mkdir(parents=True, exist_ok=True)
 
     _save_screenshot(driver, out / "screenshot.png")

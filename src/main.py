@@ -269,7 +269,7 @@ def main():
     except Exception as e:
         reporter.log_event("run_failed", {"error": str(e)})
         log_event(f"run failed: {e}")
-        save_failure_artifacts(dm.driver if dm else None, e)
+        save_failure_artifacts(dm.driver if dm else None, e, label=run_id)
         raise
 
     finally:
