@@ -2,6 +2,7 @@
 SpatchEx Long-run Test — Web UI backend
 Run:  python web/app.py   (from project root)
 """
+import datetime
 import json
 import subprocess
 import sys
@@ -10,10 +11,12 @@ import time
 from pathlib import Path
 
 import yaml
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+ARTIFACTS_DIR = ROOT / "artifacts"
 
 app = Flask(__name__)
 
@@ -285,6 +288,66 @@ def api_hub_events():
 def api_hub_sessions():
     with _hub_lock:
         return jsonify(dict(_hub_sessions))
+
+
+# ── Failures (artifact browser) ───────────────────────────────────────────────
+
+@app.route("/failures")
+def failures():
+    """List all failure artifact folders, newest first."""
+    folders = []
+    if ARTIFACTS_DIR.exists():
+        for d in sorted(ARTIFACTS_DIR.iterdir(), reverse=True):
+            if not d.is_dir():
+                continue
+            try:
+                dt = datetime.datetime.strptime(d.name, "%Y%m%d_%H%M%S")
+                label = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                label = d.name
+            files = sorted(f.name for f in d.iterdir() if f.is_file())
+            folders.append({"name": d.name, "label": label, "files": files})
+    return render_template("failures.html", folders=folders)
+
+
+@app.route("/failures/<ts>")
+def failure_detail(ts):
+    """Show screenshot, error, and logcat for one failure folder."""
+    folder = ARTIFACTS_DIR / ts
+    if not folder.is_dir():
+        return "Artifact folder not found.", 404
+
+    try:
+        dt = datetime.datetime.strptime(ts, "%Y%m%d_%H%M%S")
+        label = dt.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        label = ts
+
+    def _read(name):
+        p = folder / name
+        return p.read_text(encoding="utf-8", errors="replace") if p.exists() else None
+
+    has_screenshot = (folder / "screenshot.png").exists()
+    error_text     = _read("error.txt")
+    logcat_text    = _read("logcat.txt")
+
+    return render_template(
+        "failure_detail.html",
+        ts=ts,
+        label=label,
+        has_screenshot=has_screenshot,
+        error_text=error_text,
+        logcat_text=logcat_text,
+    )
+
+
+@app.route("/artifacts/<ts>/<filename>")
+def serve_artifact(ts, filename):
+    """Serve a single file from an artifact folder."""
+    folder = ARTIFACTS_DIR / ts
+    if not folder.is_dir():
+        return "Not found.", 404
+    return send_from_directory(str(folder), filename)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
