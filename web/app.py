@@ -30,20 +30,28 @@ _hub_lock = threading.Lock()
 
 # ── Selectors for spatch-ex (English first, Korean fallback) ──────────────────
 SPATCH_EX_SELECTORS = {
-    "start_now_text": "Start Now",
-    "consent_agree_text": ["Agree", "동의"],
-    "use_spatch_text": ["Use S-Patch", "S-Patch 사용하기"],
+    # ── Measurement start flow ──────────────────────────────────────────
+    "start_now_text":       ["Start Now", "지금 시작", "시작하기"],
+    "consent_agree_text":   ["Agree", "동의"],
+    "use_spatch_text":      ["Use S-Patch", "S-Patch 사용하기"],
     "duration_sheet_title": ["Select a test period", "검사 기간을 선택해주세요"],
-    "duration_24h_text": ["24 Hours", "24 시간"],
-    "duration_48h_text": ["48 Hours", "48 시간"],
-    "duration_72h_text": ["72 Hours", "72 시간"],
-    "confirm_text": ["Confirm", "OK", "확인"],
-    "offline_mode_text": ["Offline", "오프라인"],
-    "main_tab_text": ["My ECG", "나의 ECG"],
-    "symptom_add_text": ["Add Symptom", "증상 추가"],
+    "duration_24h_text":    ["24 Hours", "24 시간"],
+    "duration_48h_text":    ["48 Hours", "48 시간"],
+    "duration_72h_text":    ["72 Hours", "72 시간"],
+    # ── Popups / dialogs (English + Korean) ────────────────────────────
+    # Used to dismiss any blocking dialog before injection and after
+    # background resume. All common confirm/dismiss button labels covered.
+    "confirm_text":         ["Confirm", "OK", "확인", "닫기", "계속"],
+    "offline_mode_text":    ["Offline", "오프라인"],
+    # ── Main measurement screen ─────────────────────────────────────────
+    # Tab name differs between firmware / app versions; cover both variants.
+    "main_tab_text":        ["My ECG", "나의 ECG", "나의 심전도"],
+    # ── Symptom picker ──────────────────────────────────────────────────
+    "symptom_add_text":     ["Add Symptom", "증상 추가"],
     "symptom_picker_title": ["Check your symptoms", "증상을 선택해주세요."],
-    # symptom_confirm_text / symptom_done_text intentionally omitted
-    # English app auto-closes picker; Korean app handled via optional check
+    # symptom_confirm_text / symptom_done_text intentionally omitted:
+    # English app auto-closes picker on selection; Korean app does the same.
+    # Add these keys to the YAML config if a specific device needs them.
 }
 
 
@@ -250,7 +258,12 @@ def api_start():
 
         data = request.json or {}
         device = data.get("device", "")
-        symptoms = data.get("symptoms") or ["Chest Pain", "Palpitations", "Dizziness", "Short Breath"]
+        symptoms = data.get("symptoms") or [
+            ["Chest Pain", "가슴 통증"],
+            ["Palpitations", "두근거림"],
+            ["Dizziness", "어지러움"],
+            ["Short Breath", "호흡 가파름"],
+        ]
 
         hub_url     = (data.get("hub_url") or "").strip()
         tester_name = (data.get("tester_name") or "").strip()

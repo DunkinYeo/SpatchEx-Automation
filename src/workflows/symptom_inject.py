@@ -22,7 +22,7 @@ from src.retry import retry
 @retry(tries=3, delay=3)
 def inject_symptom_event(
     d: AndroidDriver,
-    symptoms: list[str],
+    symptoms: list[str | list[str]],
     other_text: str = "",
     activities: list[str] | None = None,
 ):
@@ -58,12 +58,19 @@ def inject_symptom_event(
         # ── 3. Open symptom picker ────────────────────────────────────
         symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
         d.tap_text(symptom_add, timeout=15, contains=True)
+
+        # Wait for the picker title to confirm the UI is ready
+        picker_title = d.sel.get(
+            "symptom_picker_title",
+            ["Check your symptoms", "증상을 선택해주세요."],
+        )
+        _wait_for_picker(d, picker_title, timeout=10)
         d.screenshot("symptom_picker_open")
         last_step = "picker_open"
 
         # ── 4. Select each symptom ────────────────────────────────────
         for s in symptoms:
-            d.tap_text(s, timeout=10, contains=True)
+            _tap_symptom_item(d, s)
         last_step = "symptoms_selected"
 
         # ── 5. Handle 'Other' free-text input ────────────────────────
@@ -121,6 +128,7 @@ def inject_symptom_event(
         try:
             d.screenshot("inject_failed_screen")
             d.logcat("inject_failed_logcat")
+            _dump_page_source(d, "inject_failed")
             # Also capture current UI state if possible
             try:
                 from selenium.webdriver.common.by import By
@@ -149,6 +157,132 @@ def inject_symptom_event(
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
+
+def _wait_for_picker(d: AndroidDriver, title: str | list, timeout: int = 10) -> None:
+    """
+    Poll until one of the picker title strings appears on screen.
+    Raises RuntimeError if none appear within timeout.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if d.is_visible_text(title):
+            return
+        time.sleep(0.5)
+    d.screenshot("picker_not_opened")
+    raise RuntimeError(f"Symptom picker did not open within {timeout}s (title: {title!r})")
+
+
+def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
+    """
+    Try each text in `texts` (English first, Korean second, etc.) and return
+    the first element found. Raises the last exception if none match.
+    """
+    per = max(timeout // len(texts), 2)
+    last_exc: Exception = RuntimeError(f"None of {texts!r} found")
+    for t in texts:
+        try:
+            return d.find(t, timeout=per, contains=True)
+        except Exception as exc:
+            last_exc = exc
+    raise last_exc
+
+
+def _tap_symptom_item(d: AndroidDriver, symptom: str | list[str], scroll_tries: int = 3) -> None:
+    """
+    Tap a single symptom item in the picker.
+
+    `symptom` may be a single string or a list of bilingual alternatives
+    (e.g. ["Chest Pain", "가슴 통증"]). Each alternative is tried in order.
+
+    Strategy per attempt:
+      1. Locate the element by textContains (all language alternatives tried).
+      2. Tap via coordinates (most reliable on React Native).
+      3. Fallback: click the parent container row.
+      4. Fallback: element.click() directly.
+    If the element is not visible, scroll the list and retry up to scroll_tries times.
+    On final failure: screenshot + page source dump before raising.
+    """
+    from selenium.webdriver.common.by import By
+
+    texts = [symptom] if isinstance(symptom, str) else symptom
+    label = texts[0][:12]
+
+    d.screenshot(f"symptom_pre_{label}")
+    last_exc: Exception = RuntimeError(f"Could not select symptom: {texts!r}")
+
+    for attempt in range(scroll_tries + 1):
+        # --- locate (try all language alternatives) ---
+        try:
+            el = _find_symptom_element(d, texts, timeout=5)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < scroll_tries:
+                _scroll_symptom_list(d)
+                continue
+            break
+
+        # --- tap via coordinates ---
+        try:
+            loc = el.location
+            sz = el.size
+            cx = loc["x"] + sz["width"] // 2
+            cy = loc["y"] + sz["height"] // 2
+            d.drv.tap([(cx, cy)])
+            d.wait_idle(0.3)
+            return
+        except Exception:
+            pass
+
+        # --- fallback: click parent container row ---
+        try:
+            el.find_element(By.XPATH, "..").click()
+            d.wait_idle(0.3)
+            return
+        except Exception:
+            pass
+
+        # --- fallback: element.click() ---
+        try:
+            el.click()
+            d.wait_idle(0.3)
+            return
+        except Exception as exc:
+            last_exc = exc
+
+        if attempt < scroll_tries:
+            _scroll_symptom_list(d)
+
+    # All attempts exhausted
+    d.screenshot(f"symptom_fail_{label}")
+    _dump_page_source(d, f"symptom_fail_{label}")
+    raise last_exc
+
+
+def _scroll_symptom_list(d: AndroidDriver) -> None:
+    """Swipe the symptom picker list upward (scroll content down)."""
+    try:
+        size = d.drv.get_window_size()
+        w, h = size["width"], size["height"]
+        d.drv.swipe(w // 2, int(h * 0.70), w // 2, int(h * 0.30), duration=400)
+        d.wait_idle(0.4)
+    except Exception:
+        pass
+
+
+def _dump_page_source(d: AndroidDriver, label: str) -> None:
+    """Write current UI XML (page source) to the log dir as a debug artifact."""
+    import os
+
+    try:
+        xml = d.drv.page_source
+        ts = d.artifacts._ts()
+        path = os.path.join(d.artifacts.log_dir, f"{ts}_{label}.xml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(xml)
+        d.reporter.log_event("page_source_dumped", {"label": label, "path": path})
+    except Exception:
+        pass
 
 
 def _enter_other_text(d: AndroidDriver, text: str):
