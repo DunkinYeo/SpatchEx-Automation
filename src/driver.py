@@ -1,3 +1,4 @@
+import logging
 import subprocess
 import time
 
@@ -6,11 +7,28 @@ from appium.options.android.uiautomator2.base import UiAutomator2Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import (
+    TimeoutException,
+    WebDriverException,
+    InvalidSessionIdException,
+)
 
 from src.retry import retry
 from src.artifacts import ArtifactManager
 from src.reporter import RunReporter
+
+# Substrings in exception messages that indicate the Appium session or ADB
+# connection is gone rather than a normal UI timeout.
+_SESSION_ERROR_PHRASES = (
+    "invalid session id",
+    "session not created",
+    "no such session",
+    "socket hang up",
+    "connection reset",
+    "connection refused",
+    "adb connection",
+    "broken pipe",
+)
 
 
 class AndroidDriver:
@@ -52,25 +70,44 @@ class AndroidDriver:
         return webdriver.Remote(server, options=self._build_options())
 
     def reconnect(self):
-        """Re-establish Appium session after a crash or timeout."""
-        self.reporter.log_event("appium_reconnect", {})
+        """
+        Re-establish Appium session after a crash or timeout.
+        After reconnecting, brings the app to foreground so the recovered
+        session lands on the right screen. The scheduler's health checks
+        (ensure_measurement_started) will verify UI state.
+        """
+        logging.warning("[SESSION] recreating driver")
+        self.reporter.log_event("session_recreating", {})
         try:
             self.drv.quit()
         except Exception:
             pass
         self.drv = self._connect()
+        try:
+            self.bring_to_foreground()
+        except Exception:
+            pass
+        logging.info("[SESSION] recovery success")
+        self.reporter.log_event("session_recovery_success", {})
 
     def is_session_alive(self) -> bool:
+        """
+        Probe the Appium session by making a real network round-trip.
+        current_activity exercises the underlying socket, so it will raise
+        InvalidSessionIdException, WebDriverException (connection refused),
+        or OSError (socket hang up / broken pipe) when the session is gone.
+        """
         try:
             _ = self.drv.current_activity
             return True
-        except WebDriverException:
+        except Exception:
             return False
 
     def ensure_session(self):
         """Check session health; reconnect if dead."""
         if not self.is_session_alive():
-            self.reporter.log_event("session_dead_reconnecting", {})
+            logging.warning("[SESSION] driver lost — session not alive")
+            self.reporter.log_event("session_lost", {"reason": "session_not_alive"})
             self.reconnect()
 
     def close(self):
@@ -169,6 +206,61 @@ class AndroidDriver:
             except Exception:
                 pass
         return False
+
+    # ------------------------------------------------------------------
+    # Session-safe action wrappers
+    # ------------------------------------------------------------------
+
+    def _is_session_error(self, exc: Exception) -> bool:
+        """
+        Return True if exc indicates a lost Appium session or ADB disconnect
+        rather than a normal UI timeout or element-not-found error.
+        Catches both typed exceptions and socket-level errors embedded in
+        WebDriverException messages (e.g. "socket hang up", "connection reset").
+        """
+        if isinstance(exc, (InvalidSessionIdException, OSError)):
+            return True
+        msg = str(exc).lower()
+        return any(phrase in msg for phrase in _SESSION_ERROR_PHRASES)
+
+    def safe_tap(self, text: str | list, timeout: int = 10, contains: bool = True) -> bool:
+        """
+        tap_text wrapper that detects a lost session, recreates the driver,
+        then retries the tap once. Use this for all UI taps in long-running
+        workflows where the session may drop between interactions.
+
+        Raises the original exception unchanged if the error is not session-related.
+        """
+        try:
+            return self.tap_text(text, timeout=timeout, contains=contains)
+        except Exception as exc:
+            if self._is_session_error(exc):
+                logging.warning("[SESSION] driver lost during tap — %s", exc)
+                self.reporter.log_event("session_lost", {"action": "tap", "error": str(exc)})
+                self.reconnect()
+                return self.tap_text(text, timeout=timeout, contains=contains)
+            raise
+
+    def safe_send_keys(self, locator: str, text: str, timeout: int = 10) -> None:
+        """
+        find + send_keys wrapper that detects a lost session, recreates the
+        driver, then retries the action once. Use this for all text input in
+        long-running workflows.
+
+        Raises the original exception unchanged if the error is not session-related.
+        """
+        try:
+            el = self.find(locator, timeout=timeout)
+            el.send_keys(text)
+        except Exception as exc:
+            if self._is_session_error(exc):
+                logging.warning("[SESSION] driver lost during send_keys — %s", exc)
+                self.reporter.log_event("session_lost", {"action": "send_keys", "error": str(exc)})
+                self.reconnect()
+                el = self.find(locator, timeout=timeout)
+                el.send_keys(text)
+            else:
+                raise
 
     # ------------------------------------------------------------------
     # Artifact helpers
