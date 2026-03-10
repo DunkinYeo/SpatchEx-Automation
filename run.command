@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ============================================================
 # SpatchEx -- Launch Test Environment
 # run.command  (project root)
@@ -50,19 +50,51 @@ if [ ! -f ".venv/bin/activate" ]; then
     exit 1
 fi
 
-# ── [3] Activate virtual environment ─────────────────────────
+# ── [3] Python detection ─────────────────────────────────────
+PYTHON=""
+if [ -f ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON="python"
+else
+    echo "  ERROR: python not found."
+    echo "  Install Python 3.10+ from https://www.python.org/downloads/"
+    echo ""
+    echo "[run] FAIL: python not found" >> "$LOG_FILE"
+    read -r -p "  Press Enter to close... " _
+    exit 1
+fi
+
+# ── [4] Activate virtual environment ─────────────────────────
 echo "  Activating Python environment..."
 # shellcheck disable=SC1091
 source .venv/bin/activate
 echo "[run] .venv activated" >> "$LOG_FILE"
 
-# ── [4] ADB / Android SDK detection ──────────────────────────
-# Try bundled runtime first, then common macOS SDK locations
+# ── [5] ADB / Android SDK detection ──────────────────────────
+echo "  Detecting Android SDK..."
+
+# Case A: bundled runtime
 if [ -f "runtime/android-sdk/platform-tools/adb" ]; then
     export ANDROID_HOME="$PWD/runtime/android-sdk"
     export ANDROID_SDK_ROOT="$PWD/runtime/android-sdk"
-    export PATH="$PWD/runtime/android-sdk/platform-tools:$PATH"
-elif [ -z "$ANDROID_HOME" ]; then
+    export PATH="$ANDROID_HOME/platform-tools:$PATH"
+
+# Case B-1: ANDROID_HOME already set and valid
+elif [ -n "$ANDROID_HOME" ] && [ -f "$ANDROID_HOME/platform-tools/adb" ]; then
+    export ANDROID_SDK_ROOT="$ANDROID_HOME"
+    export PATH="$ANDROID_HOME/platform-tools:$PATH"
+
+# Case B-2: ANDROID_SDK_ROOT already set and valid
+elif [ -n "$ANDROID_SDK_ROOT" ] && [ -f "$ANDROID_SDK_ROOT/platform-tools/adb" ]; then
+    export ANDROID_HOME="$ANDROID_SDK_ROOT"
+    export PATH="$ANDROID_HOME/platform-tools:$PATH"
+
+# Case C: common macOS SDK paths (Android Studio default)
+else
+    SDK_FOUND=0
     for SDK_PATH in \
         "$HOME/Library/Android/sdk" \
         "$HOME/Android/Sdk" \
@@ -72,13 +104,55 @@ elif [ -z "$ANDROID_HOME" ]; then
         if [ -f "$SDK_PATH/platform-tools/adb" ]; then
             export ANDROID_HOME="$SDK_PATH"
             export ANDROID_SDK_ROOT="$SDK_PATH"
-            export PATH="$SDK_PATH/platform-tools:$PATH"
+            export PATH="$ANDROID_HOME/platform-tools:$PATH"
+            SDK_FOUND=1
             break
         fi
     done
+
+    # Case D: derive SDK root from adb in PATH
+    if [ "$SDK_FOUND" -eq 0 ]; then
+        ADB_PATH=$(which adb 2>/dev/null)
+        if [ -n "$ADB_PATH" ]; then
+            PLATFORM_TOOLS=$(dirname "$ADB_PATH")
+            SDK_ROOT=$(dirname "$PLATFORM_TOOLS")
+            export ANDROID_HOME="$SDK_ROOT"
+            export ANDROID_SDK_ROOT="$SDK_ROOT"
+            export PATH="$ANDROID_HOME/platform-tools:$PATH"
+            SDK_FOUND=1
+        fi
+    fi
+
+    if [ "$SDK_FOUND" -eq 0 ]; then
+        echo ""
+        echo "  ERROR  Android SDK not found."
+        echo ""
+        echo "  ANDROID_HOME and ANDROID_SDK_ROOT are not set,"
+        echo "  and adb was not found in PATH."
+        echo ""
+        echo "  Install options:"
+        echo "    A) Install Android Studio: https://developer.android.com/studio"
+        echo "    B) Homebrew: brew install android-platform-tools"
+        echo ""
+        echo "[run] FAIL: Android SDK not found" >> "$LOG_FILE"
+        read -r -p "  Press Enter to close... " _
+        exit 1
+    fi
 fi
 
-# ── [5] ADB device check (warn only -- does NOT block startup) ─
+# ── [6] Diagnostics ──────────────────────────────────────────
+echo ""
+echo "  --- Environment ---"
+echo "  ANDROID_HOME=$ANDROID_HOME"
+echo "  ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+echo "  Python: $($PYTHON --version 2>&1)"
+node --version >/dev/null 2>&1 && echo "  Node:   $(node --version 2>&1)"
+appium -v >/dev/null 2>&1  && echo "  Appium: $(appium -v 2>&1 | head -1)"
+echo "  -------------------"
+echo ""
+echo "[run] ANDROID_HOME=$ANDROID_HOME" >> "$LOG_FILE"
+
+# ── [7] ADB device check (warn only -- does NOT block startup) ─
 echo "  Checking connected devices..."
 if ! command -v adb >/dev/null 2>&1; then
     echo "  WARN  ADB not found. Device check skipped."
@@ -105,10 +179,10 @@ else
     fi
 fi
 
-# ── [6] Start Appium (skip if already on port 4723) ──────────
+# ── [8] Start Appium (skip if already on port 4723) ──────────
 echo ""
 echo "  Checking Appium (port 4723)..."
-if lsof -i tcp:4723 >/dev/null 2>&1; then
+if curl -sf --max-time 2 "http://127.0.0.1:4723/status" >/dev/null 2>&1; then
     echo "  Appium already running on port 4723."
     echo "[run] Appium already on 4723" >> "$LOG_FILE"
 else
@@ -124,22 +198,14 @@ else
     fi
 fi
 
-# ── [7] Start web server + health-check browser opener ───────
+# ── [9] Start web server + health-check browser opener ───────
 echo ""
 echo "  Starting web server on port 5001..."
 echo "[run] Starting web server" >> "$LOG_FILE"
 
-if [ ! -f "web/app.py" ]; then
-    echo "  ERROR: web/app.py not found."
-    echo "[run] FAIL: web/app.py missing at launch" >> "$LOG_FILE"
-    read -r -p "  Press Enter to close... " _
-    exit 1
-fi
-
 # Background health check:
 #   Polls http://127.0.0.1:5001 up to 30 times (1 second apart).
 #   Opens browser ONLY after the server responds successfully.
-#   NEVER opens the browser before the server is alive.
 (
     for i in $(seq 1 30); do
         if curl -sf --max-time 2 "http://127.0.0.1:5001" >/dev/null 2>&1; then
@@ -155,12 +221,11 @@ fi
 HEALTH_PID=$!
 
 # Web server runs in foreground -- keeps this window alive while running.
-# Press Ctrl+C or run STOP.command to shut everything down.
 echo "  Browser will open automatically when the server is ready."
 echo "  Leave this window OPEN during the test."
 echo ""
 
-python web/app.py
+$PYTHON web/app.py
 
 # ── Server exited ─────────────────────────────────────────────
 kill "$HEALTH_PID" 2>/dev/null || true
