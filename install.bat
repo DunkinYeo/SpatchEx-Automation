@@ -14,12 +14,10 @@ echo.
 echo   Log: %LOG%
 echo.
 
-REM ============================================================
 REM [1/6] Python
-REM ============================================================
 echo DEBUG: entering step1
 echo [1/6] Python...
-python --version >nul 2>&1
+python --version >/dev/null 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  Python not found in PATH.
     echo   Download Python 3.10+ from https://www.python.org/downloads/
@@ -29,17 +27,15 @@ IF ERRORLEVEL 1 (
     SET FAILED=1
     GOTO :step2
 )
-FOR /F "tokens=*" %%v IN ('python --version 2^>^&1') DO echo   PASS  %%v
+echo   PASS  Python
 echo [1/6] PASS >> "%LOG%"
 
-REM ============================================================
 REM [2/6] Node.js / npm
-REM ============================================================
 :step2
 echo DEBUG: entering step2
 echo.
 echo [2/6] Node.js / npm...
-node --version >nul 2>&1
+node --version >/dev/null 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  Node.js not found in PATH.
     echo   Download Node.js LTS from https://nodejs.org/
@@ -48,8 +44,8 @@ IF ERRORLEVEL 1 (
     SET FAILED=1
     GOTO :step3
 )
-FOR /F "tokens=*" %%v IN ('node --version 2^>^&1') DO echo   PASS  Node.js %%v
-npm --version >nul 2>&1
+echo   PASS  Node.js
+npm --version >/dev/null 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  npm not found. Reinstall Node.js from https://nodejs.org/
     echo [2/6] FAIL npm >> "%LOG%"
@@ -57,17 +53,15 @@ IF ERRORLEVEL 1 (
     SET FAILED=1
     GOTO :step3
 )
-FOR /F "tokens=*" %%v IN ('npm --version 2^>^&1') DO echo   PASS  npm v%%v
+echo   PASS  npm
 echo [2/6] PASS >> "%LOG%"
 
-REM ============================================================
-REM [3/6] ADB (Android Debug Bridge)
-REM ============================================================
+REM [3/6] ADB
 :step3
 echo DEBUG: entering step3
 echo.
 echo [3/6] ADB...
-adb version >nul 2>&1
+adb version >/dev/null 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  ADB not found in PATH.
     echo   Install Android Studio or download platform-tools:
@@ -80,9 +74,7 @@ IF ERRORLEVEL 1 (
 echo   PASS  ADB ready
 echo [3/6] PASS >> "%LOG%"
 
-REM ============================================================
 REM [4/6] Appium
-REM ============================================================
 :step4
 echo DEBUG: entering step4
 pause
@@ -98,13 +90,13 @@ SET "_AV="
 FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
     IF NOT DEFINED _AV SET "_AV=%%v"
 )
-del "%_APV_TMP%" >nul 2>&1
+del "%_APV_TMP%" >/dev/null 2>&1
 echo   PASS  Appium %_AV%
 echo [4/6] PASS: Appium %_AV% >> "%LOG%"
 GOTO :step5
 
 :install_appium
-del "%_APV_TMP%" >nul 2>&1
+del "%_APV_TMP%" >/dev/null 2>&1
 echo   Appium not found. Installing via npm...
 echo   This may take 2-5 minutes. Please wait.
 echo [4/6] Installing appium... >> "%LOG%"
@@ -122,7 +114,7 @@ IF ERRORLEVEL 1 (
     echo   FAIL  appium -v failed after install.
     echo   Close this window and re-run install.bat.
     echo [4/6] FAIL verify >> "%LOG%"
-    del "%_APV_TMP%" >nul 2>&1
+    del "%_APV_TMP%" >/dev/null 2>&1
     pause
     SET FAILED=1
     GOTO :step5
@@ -131,13 +123,11 @@ SET "_AV="
 FOR /F "usebackq tokens=*" %%v IN ("%_APV_TMP%") DO (
     IF NOT DEFINED _AV SET "_AV=%%v"
 )
-del "%_APV_TMP%" >nul 2>&1
+del "%_APV_TMP%" >/dev/null 2>&1
 echo   PASS  Appium %_AV% installed.
 echo [4/6] PASS: installed >> "%LOG%"
 
-REM ============================================================
 REM [5/6] UiAutomator2 driver
-REM ============================================================
 :step5
 echo DEBUG: entering step5
 echo.
@@ -146,16 +136,16 @@ echo [5/6] UiAutomator2 >> "%LOG%"
 
 SET "_DRV_TMP=%TEMP%\spatch_drv.txt"
 call appium driver list --installed > "%_DRV_TMP%" 2>&1
-findstr /i "uiautomator2" "%_DRV_TMP%" >nul 2>&1
+findstr /i "uiautomator2" "%_DRV_TMP%" >/dev/null 2>&1
 IF ERRORLEVEL 1 GOTO :install_uia2
 
 echo   PASS  UiAutomator2 driver already installed.
 echo [5/6] PASS >> "%LOG%"
-del "%_DRV_TMP%" >nul 2>&1
+del "%_DRV_TMP%" >/dev/null 2>&1
 GOTO :step6
 
 :install_uia2
-del "%_DRV_TMP%" >nul 2>&1
+del "%_DRV_TMP%" >/dev/null 2>&1
 echo   UiAutomator2 not found. Installing...
 echo   This may take 1-3 minutes. Please wait.
 echo [5/6] Installing uiautomator2... >> "%LOG%"
@@ -171,9 +161,7 @@ IF ERRORLEVEL 1 (
 echo   PASS  UiAutomator2 driver installed.
 echo [5/6] PASS >> "%LOG%"
 
-REM ============================================================
 REM [6/6] Python packages
-REM ============================================================
 :step6
 echo DEBUG: entering step6
 echo.
