@@ -55,7 +55,15 @@ call .venv\Scripts\activate.bat
 echo [run] .venv activated >> "%LOG%"
 
 REM ── [4] Android SDK detection ────────────────────────────────
-REM Case A: bundled SDK inside runtime\
+REM Case A: platform-tools downloaded directly into runtime\ by install.bat
+IF EXIST "runtime\platform-tools\adb.exe" (
+    SET "ANDROID_HOME=%CD%\runtime"
+    SET "ANDROID_SDK_ROOT=%CD%\runtime"
+    SET "PATH=%CD%\runtime\platform-tools;%PATH%"
+    GOTO :sdk_ready
+)
+
+REM Case A2: legacy bundled SDK layout runtime\android-sdk\
 IF EXIST "runtime\android-sdk\platform-tools\adb.exe" (
     SET "ANDROID_HOME=%CD%\runtime\android-sdk"
     SET "ANDROID_SDK_ROOT=%CD%\runtime\android-sdk"
