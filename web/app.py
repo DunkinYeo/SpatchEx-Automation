@@ -297,19 +297,6 @@ TIMELINE_FILE = ARTIFACTS_DIR / "timeline.json"
 
 @app.route("/timeline")
 def timeline():
-    """Show the automation event timeline from artifacts/timeline.json."""
-    events = []
-    if TIMELINE_FILE.exists():
-        try:
-            events = json.loads(TIMELINE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            events = []
-    return render_template("timeline.html", events=events)
-
-
-@app.route("/api/timeline")
-def api_timeline():
-    """Return timeline events as JSON (for live polling)."""
     if not TIMELINE_FILE.exists():
         return jsonify([])
     try:
