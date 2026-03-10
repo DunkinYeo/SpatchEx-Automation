@@ -365,6 +365,19 @@ def serve_artifact(ts, filename):
     return send_from_directory(str(folder), filename)
 
 
+@app.route("/api/screenshots")
+def api_screenshots():
+    """List files under artifacts/screenshots/, newest first."""
+    screenshots_dir = ARTIFACTS_DIR / "screenshots"
+    if not screenshots_dir.exists():
+        return jsonify([])
+    files = sorted(
+        (f.name for f in screenshots_dir.iterdir() if f.is_file()),
+        reverse=True,
+    )
+    return jsonify(files)
+
+
 @app.route("/failure/<name>")
 def failure_screenshot(name):
     """Serve a single screenshot from artifacts/screenshots/."""

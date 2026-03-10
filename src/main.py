@@ -15,8 +15,10 @@ from src.reporter import RunReporter
 from src.scheduler import LongRunScheduler
 from src.artifacts import ArtifactManager
 from src.slack import slack_notify
+from src.timeline import log_event
 from src.workflows.measurement_start import ensure_measurement_started
 from src.workflows.symptom_inject import inject_symptom_event
+from automation.artifact_manager import save_failure_artifacts
 
 
 def ensure_uiautomator2(reporter: RunReporter) -> None:
@@ -201,6 +203,7 @@ def main():
             "once": args.once,
         },
     )
+    log_event(f"run started: {run_cfg.get('name', 'run')} ({duration_hours}h)")
 
     # ── Single injection mode ────────────────────────────────────────────────
     if args.once:
@@ -235,6 +238,7 @@ def main():
 
         ensure_measurement_started(driver)
         reporter.log_event("measurement_started", {})
+        log_event("measurement started")
 
         def job(at_hour: float | None = None, payload: dict | None = None):
             payload  = payload or {}
@@ -260,9 +264,12 @@ def main():
         scheduler.run(job, driver=driver)
 
         reporter.log_event("run_complete", {"status": "ok"})
+        log_event("run complete")
 
     except Exception as e:
         reporter.log_event("run_failed", {"error": str(e)})
+        log_event(f"run failed: {e}")
+        save_failure_artifacts(dm.driver if dm else None, e)
         raise
 
     finally:
