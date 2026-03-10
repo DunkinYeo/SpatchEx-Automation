@@ -111,15 +111,20 @@ else
     done
 
     # Case D: derive SDK root from adb in PATH
+    # Validates the derived path actually contains platform-tools/adb.
+    # Guards against Homebrew adb (/opt/homebrew/bin/adb) which would
+    # incorrectly derive /opt/homebrew as the SDK root.
     if [ "$SDK_FOUND" -eq 0 ]; then
         ADB_PATH=$(which adb 2>/dev/null)
         if [ -n "$ADB_PATH" ]; then
             PLATFORM_TOOLS=$(dirname "$ADB_PATH")
             SDK_ROOT=$(dirname "$PLATFORM_TOOLS")
-            export ANDROID_HOME="$SDK_ROOT"
-            export ANDROID_SDK_ROOT="$SDK_ROOT"
-            export PATH="$ANDROID_HOME/platform-tools:$PATH"
-            SDK_FOUND=1
+            if [ -f "$SDK_ROOT/platform-tools/adb" ]; then
+                export ANDROID_HOME="$SDK_ROOT"
+                export ANDROID_SDK_ROOT="$SDK_ROOT"
+                export PATH="$ANDROID_HOME/platform-tools:$PATH"
+                SDK_FOUND=1
+            fi
         fi
     fi
 
@@ -148,6 +153,7 @@ echo "  ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 echo "  Python: $($PYTHON --version 2>&1)"
 node --version >/dev/null 2>&1 && echo "  Node:   $(node --version 2>&1)"
 appium -v >/dev/null 2>&1  && echo "  Appium: $(appium -v 2>&1 | head -1)"
+adb version >/dev/null 2>&1  && echo "  ADB:    $(adb version 2>&1 | head -1)"
 echo "  -------------------"
 echo ""
 echo "[run] ANDROID_HOME=$ANDROID_HOME" >> "$LOG_FILE"

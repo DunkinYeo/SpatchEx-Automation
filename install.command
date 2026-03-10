@@ -38,31 +38,28 @@ fi
 # ============================================================
 # [1] Python 3.10+
 # ============================================================
-echo "[1] Python 3.10+..."
-for candidate in python3.13 python3.12 python3.11 python3.10 python3 python; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-        PY_VERSION=$("$candidate" --version 2>&1 | awk '{print $2}')
-        PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
-        PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
-        if [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -ge 10 ] 2>/dev/null; then
-            PYTHON="$candidate"
-            echo "  PASS  Python $PY_VERSION ($candidate)"
-            echo "[1] PASS: Python $PY_VERSION" >> "$LOG_FILE"
-            break
-        fi
-    fi
-done
-
-if [ -z "$PYTHON" ]; then
+echo "[1] Python..."
+PYTHON=""
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON="python"
+else
     echo ""
-    echo "  ERROR  Python 3.10 or later not found."
+    echo "  ERROR  Python not found."
     echo ""
     echo "  Install options:"
     echo "    A) Download: https://www.python.org/downloads/"
     echo "    B) Homebrew:  brew install python@3.12"
     echo ""
-    echo "[1] FAIL: python 3.10+ not found" >> "$LOG_FILE"
+    echo "[1] FAIL: python not found" >> "$LOG_FILE"
     FAIL=1
+fi
+
+if [ -n "$PYTHON" ]; then
+    PY_VERSION=$("$PYTHON" --version 2>&1)
+    echo "  PASS  $PY_VERSION ($PYTHON)"
+    echo "[1] PASS: $PY_VERSION" >> "$LOG_FILE"
 fi
 
 # ============================================================
