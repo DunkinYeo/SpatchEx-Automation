@@ -1,6 +1,6 @@
 @echo off
 setlocal
-chcp 65001 >/dev/null
+chcp 65001 >nul
 cd /d "%~dp0"
 REM ============================================================
 REM SpatchEx -- Launch Test Environment
@@ -71,7 +71,7 @@ IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=appium"
 
 REM ── [5] ADB device check (warn only -- does NOT block startup) ─
 echo   Checking connected devices...
-adb version >/dev/null 2>&1
+adb version >nul 2>&1
 IF ERRORLEVEL 1 (
     echo   WARN  ADB not found. Device check skipped.
     echo [run] WARN: adb not found >> "%LOG%"
@@ -98,7 +98,7 @@ echo [run] WARN: no device >> "%LOG%"
 REM ── [6] Start Appium (skip if already on port 4723) ──────────
 echo.
 echo   Checking Appium (port 4723)...
-netstat -an 2>/dev/null | findstr ":4723 " >/dev/null 2>&1
+netstat -an 2>nul | findstr ":4723 " >nul 2>&1
 IF ERRORLEVEL 1 GOTO :launch_appium
 echo   Appium already running on port 4723.
 echo [run] Appium already on 4723 >> "%LOG%"
