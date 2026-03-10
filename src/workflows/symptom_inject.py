@@ -55,6 +55,27 @@ def inject_symptom_event(
             d.tap_text(confirm, timeout=5, contains=False)
             d.wait_idle(0.5)
 
+        # ── 2c. Navigate back to main ECG tab if on a sub-screen ─────
+        # Handles two cases:
+        #   A) "기기 착용 상태" (Wearing Status) full-screen → press Back key
+        #   B) 환자일지(Diary) tab → tap main ECG tab
+        symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
+        if not d.is_visible_text(symptom_add):
+            wearing = d.sel.get(
+                "device_wearing_status_text",
+                ["기기 착용 상태", "Device Status", "Wearing Status"],
+            )
+            if d.is_visible_text(wearing):
+                d.reporter.log_event("wearing_status_screen_dismissed", {})
+                d.drv.press_keycode(4)  # KEYCODE_BACK
+                d.wait_idle(1.5)
+
+            main_tab = d.sel.get("main_tab_text")
+            if main_tab and d.is_visible_text(main_tab):
+                d.reporter.log_event("navigate_to_main_tab", {})
+                d.tap_text(main_tab, timeout=5, contains=True)
+                d.wait_idle(1.0)
+
         # ── 3. Open symptom picker ────────────────────────────────────
         symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
         d.tap_text(symptom_add, timeout=15, contains=True)

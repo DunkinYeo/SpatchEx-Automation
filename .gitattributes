@@ -1,3 +1,21 @@
+# ── Release ZIP exclusions (git archive respects export-ignore) ──────────────
+DEVLOG.md                export-ignore
+README.md                export-ignore
+README_WINDOWS_UAT.txt   export-ignore
+README_MAC_UAT.txt       export-ignore
+00_README_QuickStart.txt export-ignore
+00_START_HERE.txt        export-ignore
+clean_env.bat            export-ignore
+quick_clean.bat          export-ignore
+bootstrap.ps1            export-ignore
+bootstrap.sh             export-ignore
+pr1.patch                export-ignore
+pr1_v2.patch             export-ignore
+docs/                    export-ignore
+config/test_*.yaml       export-ignore
+config/_web_run.yaml     export-ignore
+
+# ── Line endings ──────────────────────────────────────────────────────────────
 # Windows scripts — always CRLF
 *.bat       text eol=crlf
 *.cmd       text eol=crlf
