@@ -103,6 +103,32 @@ def _get_udid(driver) -> str:
         return ""
 
 
+def save_failure(driver, name: str = "failure") -> str:
+    """
+    Lightweight screenshot-only helper.
+
+    Saves a single PNG to artifacts/screenshots/<name>_YYYYMMDD_HHMMSS.png.
+    Use this for quick mid-test snapshots. For full evidence collection
+    (screenshot + logcat + error text) use save_failure_artifacts() instead.
+
+    Returns the saved file path, or an empty string on failure.
+    """
+    screenshots_dir = ARTIFACTS_DIR / "screenshots"
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = screenshots_dir / f"{name}_{ts}.png"
+
+    try:
+        wd = getattr(driver, "drv", driver)
+        wd.save_screenshot(str(path))
+        print(f"[artifact] screenshot saved: {path}")
+        return str(path)
+    except Exception as e:
+        print(f"[artifact] screenshot failed: {e}")
+        return ""
+
+
 def _write_note(path: Path, message: str) -> None:
     """Write a plain-text note when the primary collection step fails."""
     try:
