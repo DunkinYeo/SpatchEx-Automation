@@ -365,6 +365,16 @@ def serve_artifact(ts, filename):
     return send_from_directory(str(folder), filename)
 
 
+@app.route("/failure/<name>")
+def failure_screenshot(name):
+    """Serve a single screenshot from artifacts/screenshots/."""
+    screenshots_dir = ARTIFACTS_DIR / "screenshots"
+    path = screenshots_dir / name
+    if not path.exists():
+        return "Not found", 404
+    return send_from_directory(str(screenshots_dir), name)
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
