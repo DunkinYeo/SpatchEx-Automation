@@ -113,6 +113,7 @@ pause
 EXIT /B 1
 
 :sdk_ready
+SET "PATH=%ANDROID_HOME%\platform-tools;%PATH%"
 echo   ANDROID_HOME=%ANDROID_HOME%
 echo   ANDROID_SDK_ROOT=%ANDROID_SDK_ROOT%
 echo [run] ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
@@ -156,7 +157,7 @@ echo [run] WARN: no device >> "%LOG%"
 REM ── [6] Start Appium (skip if already on port 4723) ──────────
 echo.
 echo   Checking Appium (port 4723)...
-netstat -an 2>nul | findstr ":4723 " >nul 2>&1
+netstat -ano 2>nul | findstr ":4723" >nul
 IF ERRORLEVEL 1 GOTO :launch_appium
 echo   Appium already running on port 4723.
 echo [run] Appium already on 4723 >> "%LOG%"
@@ -181,7 +182,11 @@ REM Web server runs in foreground -- keeps this window alive during the test.
 echo   Browser will open automatically when the server is ready.
 echo   Leave this window OPEN during the test.
 echo.
-python web\app.py
+IF EXIST ".venv\Scripts\python.exe" (
+    .venv\Scripts\python.exe web\app.py
+) ELSE (
+    python web\app.py
+)
 
 REM ── Server exited ─────────────────────────────────────────────
 echo.
