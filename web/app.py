@@ -446,9 +446,11 @@ def failure_detail(ts):
         p = folder / name
         return p.read_text(encoding="utf-8", errors="replace") if p.exists() else None
 
-    has_screenshot = (folder / "screenshot.png").exists()
-    error_text     = _read("error.txt")
-    logcat_text    = _read("logcat.txt")
+    has_screenshot   = (folder / "screenshot.png").exists()
+    error_text       = _read("error.txt")
+    logcat_text      = _read("logcat.txt")
+    page_source_text = _read("page_source.xml")
+    meta_text        = _read("meta.json")
 
     return render_template(
         "failure_detail.html",
@@ -457,6 +459,8 @@ def failure_detail(ts):
         has_screenshot=has_screenshot,
         error_text=error_text,
         logcat_text=logcat_text,
+        page_source_text=page_source_text,
+        meta_text=meta_text,
     )
 
 

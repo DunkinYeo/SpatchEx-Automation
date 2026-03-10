@@ -75,8 +75,10 @@
       overflow-y: auto;
     }
 
-    .error-box pre { border-left: 4px solid #ef4444; }
-    .logcat-box pre { border-left: 4px solid #3b82f6; }
+    .error-box pre      { border-left: 4px solid #ef4444; }
+    .logcat-box pre     { border-left: 4px solid #3b82f6; }
+    .pagesrc-box pre    { border-left: 4px solid #8b5cf6; }
+    .meta-box pre       { border-left: 4px solid #10b981; }
 
     .download-link {
       display: inline-block;
@@ -143,6 +145,29 @@
     </a>
     {% else %}
     <span class="no-file">logcat.txt not available</span>
+    {% endif %}
+  </section>
+
+  <!-- Page Source -->
+  <section class="pagesrc-box">
+    <h2>Page Source (UI Hierarchy)</h2>
+    {% if page_source_text %}
+    <pre>{{ page_source_text }}</pre>
+    <a class="download-link" href="/artifacts/{{ ts }}/page_source.xml" download>
+      ↓ Download page_source.xml
+    </a>
+    {% else %}
+    <span class="no-file">page_source.xml not available</span>
+    {% endif %}
+  </section>
+
+  <!-- Meta -->
+  <section class="meta-box">
+    <h2>Metadata</h2>
+    {% if meta_text %}
+    <pre>{{ meta_text }}</pre>
+    {% else %}
+    <span class="no-file">meta.json not available</span>
     {% endif %}
   </section>
 
