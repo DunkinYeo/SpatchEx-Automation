@@ -96,6 +96,83 @@ def find_latest_output_dir(since: float) -> str | None:
     return str(dirs[0]) if dirs else None
 
 
+# ── Localhost hub sync ────────────────────────────────────────────────────────
+
+def _find_latest_output_dir() -> str | None:
+    """Return the most recently modified output subdirectory."""
+    out = ROOT / "output"
+    if not out.exists():
+        return None
+    dirs = sorted((d for d in out.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime, reverse=True)
+    return str(dirs[0]) if dirs else None
+
+
+def _sync_localhost_session() -> None:
+    """Background thread: mirror the most recent local run events into _hub_sessions['Localhost']."""
+    while True:
+        time.sleep(3)
+        try:
+            with _lock:
+                proc    = _state["proc"]
+                out_dir = _state["out_dir"]
+                start_ts = _state["start_ts"]
+                running = bool(proc and proc.poll() is None)
+                if not out_dir and start_ts:
+                    found = find_latest_output_dir(start_ts)
+                    if found:
+                        _state["out_dir"] = found
+                        out_dir = found
+
+            # Fallback: pick the latest output dir from filesystem (CLI-launched runs)
+            if not out_dir:
+                out_dir = _find_latest_output_dir()
+
+            events = read_events(out_dir) if out_dir else []
+            if not events:
+                continue
+
+            device = ""
+            duration_hours = None
+            interval_hours = None
+            last_ts = ""
+            for e in events:
+                ev   = e.get("event", "")
+                data = e.get("data", {})
+                if ev == "device_info":
+                    model   = data.get("model", "")
+                    udid    = data.get("udid", "")
+                    android = data.get("android_version", "")
+                    ver     = f" · Android {android}" if android else ""
+                    device  = f"{model}{ver} ({udid})" if model else udid
+                elif ev == "run_start":
+                    duration_hours = duration_hours or data.get("duration_hours")
+                    interval_hours = interval_hours or data.get("interval_hours")
+                last_ts = e.get("ts", last_ts)
+
+            terminal = {e["event"] for e in events}
+            if "run_complete" in terminal:
+                status = "done"
+            elif "run_failed" in terminal:
+                status = "failed"
+            else:
+                status = "running"
+
+            with _hub_lock:
+                _hub_sessions["Localhost"] = {
+                    "events":         events[-200:],
+                    "last_seen":      last_ts,
+                    "status":         status,
+                    "device":         device,
+                    "duration_hours": duration_hours,
+                    "interval_hours": interval_hours,
+                }
+        except Exception:
+            pass
+
+
+threading.Thread(target=_sync_localhost_session, daemon=True).start()
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")

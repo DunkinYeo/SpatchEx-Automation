@@ -17,6 +17,7 @@ echo.
 REM ============================================================
 REM [1/6] Python
 REM ============================================================
+echo DEBUG: entering step1
 echo [1/6] Python...
 python --version >nul 2>&1
 IF ERRORLEVEL 1 (
@@ -24,6 +25,7 @@ IF ERRORLEVEL 1 (
     echo   Download Python 3.10+ from https://www.python.org/downloads/
     echo   Enable "Add Python to PATH" during install.
     echo [1/6] FAIL >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step2
 )
@@ -34,6 +36,7 @@ REM ============================================================
 REM [2/6] Node.js / npm
 REM ============================================================
 :step2
+echo DEBUG: entering step2
 echo.
 echo [2/6] Node.js / npm...
 node --version >nul 2>&1
@@ -41,6 +44,7 @@ IF ERRORLEVEL 1 (
     echo   FAIL  Node.js not found in PATH.
     echo   Download Node.js LTS from https://nodejs.org/
     echo [2/6] FAIL node >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step3
 )
@@ -49,6 +53,7 @@ npm --version >nul 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  npm not found. Reinstall Node.js from https://nodejs.org/
     echo [2/6] FAIL npm >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step3
 )
@@ -59,6 +64,7 @@ REM ============================================================
 REM [3/6] ADB (Android Debug Bridge)
 REM ============================================================
 :step3
+echo DEBUG: entering step3
 echo.
 echo [3/6] ADB...
 adb version >nul 2>&1
@@ -67,18 +73,19 @@ IF ERRORLEVEL 1 (
     echo   Install Android Studio or download platform-tools:
     echo   https://developer.android.com/tools/releases/platform-tools
     echo [3/6] FAIL >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step4
 )
-FOR /F "tokens=1,2,3" %%a IN ('adb version 2^>^&1 ^| findstr /i "android debug"') DO (
-    echo   PASS  %%a %%b %%c
-)
+echo   PASS  ADB ready
 echo [3/6] PASS >> "%LOG%"
 
 REM ============================================================
 REM [4/6] Appium
 REM ============================================================
 :step4
+echo DEBUG: entering step4
+pause
 echo.
 echo [4/6] Appium...
 echo [4/6] Appium >> "%LOG%"
@@ -106,6 +113,7 @@ IF ERRORLEVEL 1 (
     echo   FAIL  npm install appium failed.
     echo   Try running install.bat as Administrator.
     echo [4/6] FAIL install >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step5
 )
@@ -115,6 +123,7 @@ IF ERRORLEVEL 1 (
     echo   Close this window and re-run install.bat.
     echo [4/6] FAIL verify >> "%LOG%"
     del "%_APV_TMP%" >nul 2>&1
+    pause
     SET FAILED=1
     GOTO :step5
 )
@@ -130,6 +139,7 @@ REM ============================================================
 REM [5/6] UiAutomator2 driver
 REM ============================================================
 :step5
+echo DEBUG: entering step5
 echo.
 echo [5/6] UiAutomator2 driver...
 echo [5/6] UiAutomator2 >> "%LOG%"
@@ -154,6 +164,7 @@ IF ERRORLEVEL 1 (
     echo   FAIL  UiAutomator2 install failed.
     echo   Try manually: appium driver install uiautomator2
     echo [5/6] FAIL >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :step6
 )
@@ -164,6 +175,7 @@ REM ============================================================
 REM [6/6] Python packages
 REM ============================================================
 :step6
+echo DEBUG: entering step6
 echo.
 echo [6/6] Python packages...
 echo [6/6] Python packages >> "%LOG%"
@@ -174,6 +186,7 @@ IF NOT EXIST ".venv" (
     IF ERRORLEVEL 1 (
         echo   FAIL  Could not create .venv.
         echo [6/6] FAIL venv create >> "%LOG%"
+        pause
         SET FAILED=1
         GOTO :summary
     )
@@ -183,6 +196,7 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     echo   FAIL  .venv\Scripts\activate.bat missing.
     echo   Delete .venv and re-run install.bat.
     echo [6/6] FAIL activate missing >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :summary
 )
@@ -193,6 +207,7 @@ pip install -r requirements.txt
 IF ERRORLEVEL 1 (
     echo   FAIL  pip install failed. Check your network connection.
     echo [6/6] FAIL pip >> "%LOG%"
+    pause
     SET FAILED=1
     GOTO :summary
 )
