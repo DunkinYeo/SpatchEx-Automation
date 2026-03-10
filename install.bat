@@ -111,7 +111,7 @@ echo.
 echo [2/6] Node.js / npm...
 node --version >nul 2>&1
 IF ERRORLEVEL 1 GOTO :install_node
-npm --version >nul 2>&1
+call npm --version >nul 2>&1
 IF ERRORLEVEL 1 GOTO :install_node
 
 echo   PASS  Node.js
@@ -155,7 +155,7 @@ IF ERRORLEVEL 1 (
     SET FAILED=1
     GOTO :step3
 )
-npm --version >nul 2>&1
+call npm --version >nul 2>&1
 IF ERRORLEVEL 1 (
     echo   FAIL  npm not found after Node.js install.
     echo   Close this window, open a new Command Prompt, and re-run install.bat.
