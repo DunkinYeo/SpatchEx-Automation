@@ -190,9 +190,18 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     GOTO :summary
 )
 
-call .venv\Scripts\activate.bat
+echo DEBUG: using venv python for package install
+echo   Upgrading pip inside venv...
+.venv\Scripts\python.exe -m pip install --upgrade pip
+IF ERRORLEVEL 1 (
+    echo   FAIL  pip upgrade failed.
+    echo [6/6] FAIL pip upgrade >> "%LOG%"
+    pause
+    SET FAILED=1
+    GOTO :summary
+)
 echo   Installing packages from requirements.txt...
-pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 IF ERRORLEVEL 1 (
     echo   FAIL  pip install failed. Check your network connection.
     echo [6/6] FAIL pip >> "%LOG%"
