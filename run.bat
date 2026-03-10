@@ -126,6 +126,9 @@ echo   ANDROID_HOME=%ANDROID_HOME%
 echo   ANDROID_SDK_ROOT=%ANDROID_SDK_ROOT%
 echo [run] ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
 
+REM ── Ensure npm global bin is in PATH (Appium installed via npm) ─
+SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
+
 REM ── Bundled Node / Appium (optional, falls back to global) ───
 IF EXIST "runtime\node\node.exe" (
     SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"

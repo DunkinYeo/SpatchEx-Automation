@@ -186,19 +186,33 @@ def api_init():
     return jsonify({"devices": get_devices(), "appium": appium_ok()})
 
 
+def _find_appium_cmd() -> str | None:
+    """Return the appium executable path, checking PATH then Windows npm fallback."""
+    import shutil, os, sys
+    cmd = shutil.which("appium")
+    if cmd:
+        return cmd
+    if sys.platform == "win32":
+        candidate = os.path.join(os.environ.get("APPDATA", ""), "npm", "appium.cmd")
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 @app.route("/api/appium/start", methods=["POST"])
 def api_appium_start():
     """Try to start the Appium server."""
+    appium_cmd = _find_appium_cmd()
+    if not appium_cmd:
+        return jsonify({"error": "appium command not found. Please check that Appium is installed."}), 500
     try:
         subprocess.Popen(
-            ["appium", "--port", "4723"],
+            [appium_cmd, "--port", "4723"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         time.sleep(2.5)
         return jsonify({"ok": True, "running": appium_ok()})
-    except FileNotFoundError:
-        return jsonify({"error": "appium command not found. Please check that Appium is installed."}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
