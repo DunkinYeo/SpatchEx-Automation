@@ -55,6 +55,22 @@ def inject_symptom_event(
             d.tap_text(confirm, timeout=5, contains=False)
             d.wait_idle(0.5)
 
+        # ── 2b-2. Handle 연결 끊김 (Bluetooth disconnection) popup ───
+        disconnect = d.sel.get(
+            "device_disconnect_text",
+            ["연결 끊김", "Disconnected", "Connection Lost"],
+        )
+        if d.is_visible_text(disconnect):
+            reconnect = d.sel.get(
+                "device_reconnect_text",
+                ["재연결", "Reconnect", "다시 연결"],
+            )
+            d.reporter.log_event("disconnect_popup_detected", {})
+            if d.is_visible_text(reconnect):
+                d.tap_text(reconnect, timeout=5, contains=True)
+                d.reporter.log_event("reconnect_tapped", {})
+                d.wait_idle(2.0)
+
         # ── 2c. Navigate back to main ECG tab if on a sub-screen ─────
         # Handles two cases:
         #   A) "기기 착용 상태" (Wearing Status) full-screen → press Back key
