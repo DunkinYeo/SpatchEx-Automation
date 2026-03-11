@@ -76,8 +76,14 @@ echo "[run] .venv activated" >> "$LOG_FILE"
 # ── [5] ADB / Android SDK detection ──────────────────────────
 echo "  Detecting Android SDK..."
 
-# Case A: bundled runtime
-if [ -f "runtime/android-sdk/platform-tools/adb" ]; then
+# Case A: bundled runtime (flat layout -- platform-tools directly in runtime/)
+if [ -f "runtime/platform-tools/adb" ]; then
+    export ANDROID_HOME="$PWD/runtime"
+    export ANDROID_SDK_ROOT="$PWD/runtime"
+    export PATH="$PWD/runtime/platform-tools:$PATH"
+
+# Case A2: bundled runtime (legacy android-sdk layout)
+elif [ -f "runtime/android-sdk/platform-tools/adb" ]; then
     export ANDROID_HOME="$PWD/runtime/android-sdk"
     export ANDROID_SDK_ROOT="$PWD/runtime/android-sdk"
     export PATH="$ANDROID_HOME/platform-tools:$PATH"

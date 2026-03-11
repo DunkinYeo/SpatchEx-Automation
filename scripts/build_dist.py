@@ -44,6 +44,8 @@ WIN_SUBS = [
     ('%CD%\\runtime"',              '%CD%\\automation\\runtime"'),
     ('%CD%\\runtime\\',             '%CD%\\automation\\runtime\\'),
     ("DestinationPath 'runtime'",   "DestinationPath 'automation\\runtime'"),
+    # IF NOT EXIST guards -- must come before mkdir substitutions
+    ('IF NOT EXIST "logs"',         'IF NOT EXIST "automation\\logs"'),
     # mkdir runtime / logs
     ('"runtime" mkdir runtime',     '"automation\\runtime" mkdir automation\\runtime'),
     ('mkdir runtime\n',             'mkdir automation\\runtime\n'),
@@ -61,10 +63,15 @@ MAC_SUBS = [
     ('python web/app.py',           'python automation/web/app.py'),
     # requirements.txt
     ('-r requirements.txt',          '-r automation/requirements.txt'),
-    # runtime paths
+    # install.command: setup_env.sh path
+    ('chmod +x scripts/setup_env.sh', 'chmod +x automation/scripts/setup_env.sh'),
+    ('bash scripts/setup_env.sh',   'bash automation/scripts/setup_env.sh'),
+    # runtime paths (with trailing slash)
     ('"runtime/android-sdk/',       '"automation/runtime/android-sdk/'),
     ('"runtime/platform-tools/',    '"automation/runtime/platform-tools/'),
     ('"$PWD/runtime/',              '"$PWD/automation/runtime/'),
+    # runtime path (no trailing slash -- e.g. ANDROID_HOME="$PWD/runtime")
+    ('"$PWD/runtime"',              '"$PWD/automation/runtime"'),
     # mkdir
     ('mkdir -p logs runtime',       'mkdir -p automation/logs automation/runtime'),
     ('mkdir -p runtime',            'mkdir -p automation/runtime'),
@@ -130,7 +137,6 @@ def build_windows(out_dir: Path):
         _add(zf, ROOT / "install.bat",          "install.bat",  WIN_SUBS)
         _add(zf, ROOT / "run.bat",              "run.bat",      WIN_SUBS)
         _add(zf, ROOT / "STOP.bat",             "STOP.bat")
-        _add(zf, ROOT / "unblock_and_run.ps1",  "unblock_and_run.ps1")
 
         # ── READMEs at root ──────────────────────────────────────────
         for fname in [
@@ -141,6 +147,7 @@ def build_windows(out_dir: Path):
 
         # ── automation/ internals ────────────────────────────────────
         P = "automation"
+        _add(zf, ROOT / "unblock_and_run.ps1",  f"{P}/tools/unblock_and_run.ps1")
         _add(zf, ROOT / "requirements.txt",    f"{P}/requirements.txt")
         _add(zf, ROOT / "selftest.bat",         f"{P}/selftest.bat", WIN_SUBS)
 
