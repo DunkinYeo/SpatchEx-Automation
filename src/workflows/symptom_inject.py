@@ -55,34 +55,21 @@ def inject_symptom_event(
             d.tap_text(confirm, timeout=5, contains=False)
             d.wait_idle(0.5)
 
-        # ── 2b-1. Dismiss '기기 연결 상태를 확인하세요' warning popup ──
-        # This popup has an X close button (no text label).
-        # Strategy: tap the X button if findable by description/class,
-        # otherwise fall back to KEYCODE_BACK.
+        # ── 2b-1. Dismiss '기기 착용 상태 확인' warning popup ──
+        # Modal with S-Patch placement illustration + '확인' button at bottom.
+        # Appears when signal quality is unstable.
         conn_check = d.sel.get(
             "device_conn_check_text",
-            ["기기 연결 상태를 확인하세요", "Check device connection", "Connection Check"],
+            ["기기 착용 상태 확인", "Check device wearing", "Wearing Check"],
         )
         if d.is_visible_text(conn_check):
             d.reporter.log_event("conn_check_popup_detected", {})
-            closed = False
-            # Try common X-button selectors
-            for xpath in [
-                '//*[@content-desc="닫기"]',
-                '//*[@content-desc="Close"]',
-                '//*[@content-desc="X"]',
-                '//*[@text="✕"]',
-                '//*[@text="X"]',
-            ]:
-                try:
-                    d.drv.find_element("xpath", xpath).click()
-                    closed = True
-                    break
-                except Exception:
-                    pass
-            if not closed:
+            confirm_btn = d.sel.get("confirm_text", ["확인", "Confirm", "OK"])
+            if d.is_visible_text(confirm_btn):
+                d.tap_text(confirm_btn, timeout=5, contains=False)
+            else:
                 d.drv.press_keycode(4)  # KEYCODE_BACK fallback
-            d.reporter.log_event("conn_check_popup_dismissed", {"method": "x_button" if closed else "back_key"})
+            d.reporter.log_event("conn_check_popup_dismissed", {})
             d.wait_idle(1.0)
 
         # ── 2b-2. Handle 연결 끊김 (Bluetooth disconnection) popup ───
@@ -112,25 +99,36 @@ def inject_symptom_event(
                     d.wait_idle(3.0)
 
         # ── 2c. Navigate back to main ECG tab if on a sub-screen ─────
-        # Handles two cases:
-        #   A) "기기 착용 상태" (Wearing Status) full-screen → press Back key
-        #   B) 환자일지(Diary) tab → tap main ECG tab
-        symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
-        if not d.is_visible_text(symptom_add):
-            wearing = d.sel.get(
-                "device_wearing_status_text",
-                ["기기 착용 상태", "Device Status", "Wearing Status"],
-            )
-            if d.is_visible_text(wearing):
-                d.reporter.log_event("wearing_status_screen_dismissed", {})
+        # Known sub-screens (all require KEYCODE_BACK to exit):
+        #   - "기기 착용 상태" / Wearing Status
+        #   - "실시간 심전도" / Real-time ECG  (landscape)
+        #   - "검사 진행 현황" / Test Progress
+        #   - "설정" / Settings  (2 levels deep: Settings → Test Progress → main)
+        # Loop presses BACK until "증상 추가" is visible or max attempts reached.
+        # After escaping sub-screens, tap main ECG tab if on Diary tab.
+        symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+        sub_screens = [
+            d.sel.get("device_wearing_status_text", ["기기 착용 상태", "Device Status", "Wearing Status"]),
+            d.sel.get("realtime_ecg_text", ["실시간 심전도", "Real-time ECG", "Realtime ECG"]),
+            d.sel.get("test_progress_text", ["검사 진행 현황", "Test Progress", "Exam Progress"]),
+            d.sel.get("settings_text", ["설정", "Settings"]),
+        ]
+        for attempt in range(4):
+            if d.is_visible_text(symptom_add):
+                break
+            on_sub = next((s for s in sub_screens if d.is_visible_text(s)), None)
+            if on_sub:
+                d.reporter.log_event("sub_screen_dismissed", {"screen": str(on_sub), "attempt": attempt + 1})
                 d.drv.press_keycode(4)  # KEYCODE_BACK
                 d.wait_idle(1.5)
+            else:
+                break
 
-            main_tab = d.sel.get("main_tab_text")
-            if main_tab and d.is_visible_text(main_tab):
-                d.reporter.log_event("navigate_to_main_tab", {})
-                d.tap_text(main_tab, timeout=5, contains=True)
-                d.wait_idle(1.0)
+        main_tab = d.sel.get("main_tab_text")
+        if main_tab and d.is_visible_text(main_tab) and not d.is_visible_text(symptom_add):
+            d.reporter.log_event("navigate_to_main_tab", {})
+            d.tap_text(main_tab, timeout=5, contains=True)
+            d.wait_idle(1.0)
 
         # ── 3. Open symptom picker ────────────────────────────────────
         symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
