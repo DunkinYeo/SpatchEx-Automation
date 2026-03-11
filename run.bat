@@ -1,23 +1,24 @@
 @echo off
 setlocal
+echo DEBUG: run.bat started
+pause
 chcp 65001 >nul
+echo DEBUG: current dir = %CD%
+pause
 cd /d "%~dp0"
-REM ============================================================
 REM SpatchEx -- Launch Test Environment
 REM run.bat  (project root)
-REM
-REM  Double-click to start Appium + Web UI.
-REM  Browser opens automatically when the server is ready.
-REM  Leave this window OPEN during the test.
-REM  To stop: run STOP.bat or close this window.
-REM ============================================================
+REM Double-click to start Appium + Web UI.
+REM Browser opens automatically when the server is ready.
+REM Leave this window OPEN during the test.
+REM To stop: run STOP.bat or close this window.
 
-REM ── Timestamp + log ─────────────────────────────────────────
+REM -- Timestamp + log -----------------------------------------
 FOR /F "usebackq tokens=*" %%T IN (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"`) DO SET _TS=%%T
 SET "LOG=%TEMP%\spatch_run_%_TS%.log"
 echo SpatchEx run started %DATE% %TIME% > "%LOG%"
 
-REM ── Banner ───────────────────────────────────────────────────
+REM -- Banner --------------------------------------------------
 echo.
 echo   +==============================================+
 echo   ^|   SpatchEx -- Launch Test Environment       ^|
@@ -26,7 +27,7 @@ echo.
 echo   Log: %LOG%
 echo.
 
-REM ── [1] Verify project root ──────────────────────────────────
+REM -- [1] Verify project root ---------------------------------
 IF NOT EXIST "web\app.py" (
     echo.
     echo   ERROR: web\app.py not found.
@@ -37,7 +38,7 @@ IF NOT EXIST "web\app.py" (
     EXIT /B 1
 )
 
-REM ── [2] Check .venv -- guide to install.bat if missing ───────
+REM -- [2] Check .venv -- guide to install.bat if missing ------
 IF NOT EXIST ".venv\Scripts\activate.bat" (
     echo.
     echo   ERROR: Python environment not set up.
@@ -49,12 +50,12 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     EXIT /B 1
 )
 
-REM ── [3] Activate virtual environment ─────────────────────────
+REM -- [3] Activate virtual environment ------------------------
 echo   Activating Python environment...
 call .venv\Scripts\activate.bat
 echo [run] .venv activated >> "%LOG%"
 
-REM ── [4] Android SDK detection ────────────────────────────────
+REM -- [4] Android SDK detection -------------------------------
 REM Case A: platform-tools downloaded directly into runtime\ by install.bat
 IF EXIST "runtime\platform-tools\adb.exe" (
     SET "ANDROID_HOME=%CD%\runtime"
@@ -126,10 +127,10 @@ echo   ANDROID_HOME=%ANDROID_HOME%
 echo   ANDROID_SDK_ROOT=%ANDROID_SDK_ROOT%
 echo [run] ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
 
-REM ── Ensure npm global bin is in PATH (Appium installed via npm) ─
+REM -- Ensure npm global bin is in PATH (Appium installed via npm)
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
-REM ── Bundled Node / Appium (optional, falls back to global) ───
+REM -- Bundled Node / Appium (optional, falls back to global) --
 IF EXIST "runtime\node\node.exe" (
     SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"
 )
@@ -139,7 +140,7 @@ IF EXIST "runtime\appium\node_modules\.bin\appium.cmd" (
 )
 IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=appium"
 
-REM ── [5] ADB device check (warn only -- does NOT block startup) ─
+REM -- [5] ADB device check (warn only -- does NOT block startup)
 echo   Checking connected devices...
 adb version >nul 2>&1
 IF ERRORLEVEL 1 (
@@ -165,7 +166,7 @@ echo.
 echo [run] WARN: no device >> "%LOG%"
 
 :start_appium
-REM ── [6] Start Appium (skip if already on port 4723) ──────────
+REM -- [6] Start Appium (skip if already on port 4723) ---------
 echo.
 echo   Checking Appium (port 4723)...
 netstat -ano 2>nul | findstr ":4723" >nul
@@ -181,7 +182,7 @@ start "SpatchEx - Appium" cmd /c "%APPIUM_CMD% --relaxed-security"
 echo   Appium starting in background window.
 
 :start_web
-REM ── [7] Start web server + health-check browser opener ───────
+REM -- [7] Start web server + health-check browser opener ------
 echo.
 echo   Starting web server on port 5001...
 echo [run] Starting web server >> "%LOG%"
@@ -199,7 +200,7 @@ IF EXIST ".venv\Scripts\python.exe" (
     python web\app.py
 )
 
-REM ── Server exited ─────────────────────────────────────────────
+REM -- Server exited --------------------------------------------
 echo.
 echo [run] Web server exited >> "%LOG%"
 echo   Web server has stopped.
