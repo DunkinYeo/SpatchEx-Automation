@@ -258,12 +258,14 @@ def api_start():
 
         data = request.json or {}
         device = data.get("device", "")
-        symptoms = data.get("symptoms") or [
-            ["Chest Pain", "가슴 통증"],
-            ["Palpitations", "두근거림"],
-            ["Dizziness", "어지러움"],
-            ["Short Breath", "호흡 가파름"],
-        ]
+        _SYMPTOM_BILINGUAL = {
+            "Chest Pain":  ["가슴 통증", "Chest Pain"],
+            "Palpitations": ["두근거림", "Palpitations"],
+            "Dizziness":   ["어지러움", "Dizziness"],
+            "Short Breath": ["호흡 가파름", "Short Breath"],
+        }
+        _raw = data.get("symptoms") or list(_SYMPTOM_BILINGUAL.keys())
+        symptoms = [_SYMPTOM_BILINGUAL.get(s, s) if isinstance(s, str) else s for s in _raw]
 
         hub_url     = (data.get("hub_url") or "").strip()
         tester_name = (data.get("tester_name") or "").strip()
