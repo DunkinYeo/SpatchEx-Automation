@@ -56,20 +56,30 @@ def inject_symptom_event(
             d.wait_idle(0.5)
 
         # ── 2b-2. Handle 연결 끊김 (Bluetooth disconnection) popup ───
+        # Retries until the main screen is restored or max attempts exceeded.
         disconnect = d.sel.get(
             "device_disconnect_text",
             ["연결 끊김", "Disconnected", "Connection Lost"],
         )
+        reconnect = d.sel.get(
+            "device_reconnect_text",
+            ["재연결", "Reconnect", "다시 연결"],
+        )
+        waiting_text = d.sel.get("device_reconnect_waiting_text", "잠시 기다려주세요")
+        symptom_add_check = d.sel.get("symptom_add_text", "Add Symptom")
         if d.is_visible_text(disconnect):
-            reconnect = d.sel.get(
-                "device_reconnect_text",
-                ["재연결", "Reconnect", "다시 연결"],
-            )
             d.reporter.log_event("disconnect_popup_detected", {})
-            if d.is_visible_text(reconnect):
-                d.tap_text(reconnect, timeout=5, contains=True)
-                d.reporter.log_event("reconnect_tapped", {})
-                d.wait_idle(2.0)
+            for attempt in range(10):
+                if d.is_visible_text(symptom_add_check):
+                    break  # back on main screen
+                if d.is_visible_text(reconnect):
+                    d.tap_text(reconnect, timeout=5, contains=True)
+                    d.reporter.log_event("reconnect_tapped", {"attempt": attempt + 1})
+                    d.wait_idle(6.0)  # wait for reconnect result
+                elif d.is_visible_text(waiting_text):
+                    d.wait_idle(3.0)  # still reconnecting
+                else:
+                    d.wait_idle(3.0)
 
         # ── 2c. Navigate back to main ECG tab if on a sub-screen ─────
         # Handles two cases:
