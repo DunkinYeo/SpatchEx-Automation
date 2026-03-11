@@ -226,6 +226,22 @@
         </select>
       </div>
 
+      <!-- Device Connection Mode (optional) -->
+      <div class="field">
+        <label>Device Connection <span style="color:#9ca3af;font-weight:400">(optional)</span></label>
+        <div style="display:flex;gap:12px;align-items:center">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400">
+            <input type="radio" name="conn-mode" value="usb" checked id="conn-usb"> USB
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400">
+            <input type="radio" name="conn-mode" value="wifi" id="conn-wifi"> WiFi ADB
+          </label>
+        </div>
+        <div id="wifi-addr-row" style="display:none;margin-top:6px">
+          <input type="text" id="wifi-addr" placeholder="e.g. 192.168.0.50:5555" style="width:100%">
+        </div>
+      </div>
+
       <!-- Run name -->
       <div class="field">
         <label>Test Name <span style="color:#9ca3af;font-weight:400">(used in result files)</span></label>
@@ -443,6 +459,14 @@ document.getElementById('duration-group').addEventListener('click', e => {
   document.getElementById('duration-val').value = btn.dataset.val;
 });
 
+// ── WiFi mode toggle ─────────────────────────────────────────────────────────
+document.querySelectorAll('input[name="conn-mode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('wifi-addr-row').style.display =
+      document.getElementById('conn-wifi').checked ? 'block' : 'none';
+  });
+});
+
 // ── Symptom toggle ──────────────────────────────────────────────────────────
 document.getElementById('symptom-grid').addEventListener('click', e => {
   const lbl = e.target.closest('.symptom-label');
@@ -470,6 +494,10 @@ document.getElementById('start-btn').addEventListener('click', async () => {
   const symptoms = [...document.querySelectorAll('#symptom-grid input:checked')].map(c => c.value);
   if (!symptoms.length) { alert('Please select at least one symptom.'); return; }
 
+  const wifiMode = document.getElementById('conn-wifi').checked;
+  const wifiAddr = (document.getElementById('wifi-addr').value || '').trim();
+  if (wifiMode && !wifiAddr) { alert('Please enter the Device Address (IP:Port) for WiFi ADB.'); return; }
+
   const body = {
     device,
     run_name:       document.getElementById('run-name').value || 'uat_run',
@@ -478,6 +506,8 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     symptoms,
     hub_url:        (document.getElementById('hub-url').value || '').trim(),
     tester_name:    (document.getElementById('tester-name').value || '').trim(),
+    wifi_mode:      wifiMode,
+    wifi_addr:      wifiMode ? wifiAddr : '',
   };
 
   const r = await fetch('/api/start', {

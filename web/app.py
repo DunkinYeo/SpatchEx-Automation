@@ -258,6 +258,24 @@ def api_start():
 
         data = request.json or {}
         device = data.get("device", "")
+
+        # ── Optional WiFi ADB connect ──────────────────────────────────────
+        wifi_addr = (data.get("wifi_addr") or "").strip()
+        if data.get("wifi_mode") and wifi_addr:
+            try:
+                result = subprocess.run(
+                    ["adb", "connect", wifi_addr],
+                    capture_output=True, text=True, timeout=10,
+                )
+                output = (result.stdout + result.stderr).strip()
+                if "connected" not in output.lower() and "already connected" not in output.lower():
+                    return jsonify({"error": f"ADB connect failed: {output}"}), 400
+                # Use the wifi address as device if no USB device selected
+                if not device:
+                    device = wifi_addr
+            except Exception as e:
+                return jsonify({"error": f"ADB connect error: {e}"}), 500
+
         _SYMPTOM_BILINGUAL = {
             "Chest Pain":  ["가슴 통증", "Chest Pain"],
             "Palpitations": ["두근거림", "Palpitations"],
