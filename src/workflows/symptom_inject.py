@@ -55,6 +55,36 @@ def inject_symptom_event(
             d.tap_text(confirm, timeout=5, contains=False)
             d.wait_idle(0.5)
 
+        # ── 2b-1. Dismiss '기기 연결 상태를 확인하세요' warning popup ──
+        # This popup has an X close button (no text label).
+        # Strategy: tap the X button if findable by description/class,
+        # otherwise fall back to KEYCODE_BACK.
+        conn_check = d.sel.get(
+            "device_conn_check_text",
+            ["기기 연결 상태를 확인하세요", "Check device connection", "Connection Check"],
+        )
+        if d.is_visible_text(conn_check):
+            d.reporter.log_event("conn_check_popup_detected", {})
+            closed = False
+            # Try common X-button selectors
+            for xpath in [
+                '//*[@content-desc="닫기"]',
+                '//*[@content-desc="Close"]',
+                '//*[@content-desc="X"]',
+                '//*[@text="✕"]',
+                '//*[@text="X"]',
+            ]:
+                try:
+                    d.drv.find_element("xpath", xpath).click()
+                    closed = True
+                    break
+                except Exception:
+                    pass
+            if not closed:
+                d.drv.press_keycode(4)  # KEYCODE_BACK fallback
+            d.reporter.log_event("conn_check_popup_dismissed", {"method": "x_button" if closed else "back_key"})
+            d.wait_idle(1.0)
+
         # ── 2b-2. Handle 연결 끊김 (Bluetooth disconnection) popup ───
         # Retries until the main screen is restored or max attempts exceeded.
         disconnect = d.sel.get(
