@@ -7,10 +7,11 @@
 #  Do NOT run this file directly -- run install.sh instead.
 #
 #  Steps:
+#    [0] Homebrew  (gate -- required for all auto-installs)
 #    [1] Python 3.10+
 #    [2] Node.js / npm
-#    [3] ADB / Android SDK
-#    [4] Appium installation
+#    [3] ADB / platform-tools
+#    [4] Appium
 #    [5] UiAutomator2 driver
 #    [6] Python virtual environment + packages
 #    [7] Create runtime folders
@@ -48,6 +49,32 @@ echo "  =============================================="
 echo ""
 echo "  Log: $LOG_FILE"
 echo ""
+
+# ============================================================
+# [0] Homebrew  (required gate for all auto-installs)
+# ============================================================
+echo "[0] Homebrew..."
+if command -v brew >/dev/null 2>&1; then
+    BREW_VER=$(brew --version 2>&1 | head -1)
+    echo "  PASS  $BREW_VER"
+    echo "[0] PASS: $BREW_VER" >> "$LOG_FILE"
+else
+    echo ""
+    echo "  ============================================================"
+    echo "  Homebrew is required for automatic setup."
+    echo "  ============================================================"
+    echo ""
+    echo "  Please run this ONE command in Terminal, then re-run install.command:"
+    echo ""
+    echo "    /bin/bash -c \"\$(curl -fsSL https://brew.sh/install.sh)\""
+    echo ""
+    echo "  After Homebrew is installed, double-click install.command again."
+    echo "  All remaining tools (Python, Node, ADB, Appium) will install"
+    echo "  automatically."
+    echo ""
+    echo "[0] FAIL: brew not found" >> "$LOG_FILE"
+    exit 1
+fi
 
 # ============================================================
 # [1] Python 3.10+
@@ -188,16 +215,11 @@ else
         fi
         if [ "$ADB_FOUND" -eq 0 ]; then
             echo ""
-            echo "  ERROR  ADB not found."
-            echo ""
-            echo "  Install options:"
-            echo "    A) Homebrew: brew install android-platform-tools"
-            echo "    B) Android Studio: https://developer.android.com/studio"
-            echo ""
-            echo "  After installing, re-run install.command."
+            echo "  ERROR  ADB could not be installed."
+            echo "  Try manually: brew install android-platform-tools"
             echo ""
             echo "[3] FAIL: adb not found" >> "$LOG_FILE"
-            exit 1
+            FAIL=1
         fi
     fi
 fi
@@ -272,9 +294,9 @@ fi
 # ============================================================
 echo ""
 echo "[6] Python virtual environment..."
-if [ "$FAIL" -eq 1 ] || [ -z "$PYTHON_EXE" ]; then
-    echo "  SKIP  Skipping Python setup due to earlier errors."
-    echo "[6] SKIP: earlier failures" >> "$LOG_FILE"
+if [ -z "$PYTHON_EXE" ]; then
+    echo "  SKIP  Python not available -- cannot set up virtual environment."
+    echo "[6] SKIP: python unavailable" >> "$LOG_FILE"
 elif [ ! -f "requirements.txt" ]; then
     echo "  ERROR  requirements.txt not found."
     echo "[6] FAIL: requirements.txt missing" >> "$LOG_FILE"
@@ -299,9 +321,7 @@ else
 
     if [ "$FAIL" -eq 0 ]; then
         echo "  Installing Python packages..."
-        # shellcheck disable=SC1091
-        source .venv/bin/activate
-        pip install -r requirements.txt --quiet
+        .venv/bin/python -m pip install -r requirements.txt --quiet
         if [ $? -ne 0 ]; then
             echo ""
             echo "  ERROR  pip install failed."

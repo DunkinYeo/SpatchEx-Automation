@@ -19,7 +19,17 @@ export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
 chmod +x scripts/setup_env.sh 2>/dev/null
 
 echo ""
-echo "Running setup script..."
+echo "  =============================================="
+echo "  |   SpatchEx -- First-Time Setup (macOS)    |"
+echo "  =============================================="
+echo ""
+echo "  This installer will automatically set up:"
+echo "    Python 3.10+, Node.js, ADB, Appium,"
+echo "    UiAutomator2 driver, Python packages"
+echo ""
+echo "  PREREQUISITE: Homebrew must be installed."
+echo "  If not, the installer will tell you the"
+echo "  exact command to run."
 echo ""
 
 bash scripts/setup_env.sh
