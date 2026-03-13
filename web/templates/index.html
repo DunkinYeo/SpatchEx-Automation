@@ -427,6 +427,13 @@ async function init() {
   } else if (s.exit_code !== null && s.exit_code !== undefined) {
     showFinished(s.exit_code);
   }
+
+  // Auto-fill Team Hub URL when opened from a LAN IP (not localhost).
+  const hubField = document.getElementById('hub-url');
+  const host = window.location.hostname;
+  if (!hubField.value && host !== 'localhost' && host !== '127.0.0.1') {
+    hubField.value = window.location.origin;
+  }
 }
 
 function updateAppiumUI(ok) {
