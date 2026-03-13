@@ -55,18 +55,19 @@ echo ""
 # ============================================================
 echo "[0] Homebrew..."
 if ! command -v brew >/dev/null 2>&1; then
-    echo "  Homebrew not found. Attempting automatic installation..."
-    echo "  (You may be prompted for your macOS password)"
+    echo "  Homebrew not found. Installing automatically..."
+    echo "  This may take a few minutes."
+    echo "  If asked for your Mac password, type it and press Enter."
     echo "[0] Installing Homebrew..." >> "$LOG_FILE"
 
-    # NONINTERACTIVE=1 skips the "press RETURN to continue" prompt.
-    # A sudo password prompt may still appear -- type it when asked.
+    # Output is kept on the terminal so the user can see progress and
+    # respond to any sudo password prompt.
+    # NONINTERACTIVE=1 skips the "Press RETURN to continue" pause only.
     NONINTERACTIVE=1 /bin/bash -c \
-        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-        >> "$LOG_FILE" 2>&1
+        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-    # Bring Homebrew into PATH for the rest of this session.
-    # Apple Silicon installs to /opt/homebrew; Intel to /usr/local.
+    # Initialise Homebrew in this shell session immediately after install.
+    # Apple Silicon: /opt/homebrew   Intel Mac: /usr/local
     for _BREW_PREFIX in "/opt/homebrew" "/usr/local"; do
         if [ -f "$_BREW_PREFIX/bin/brew" ]; then
             eval "$("$_BREW_PREFIX/bin/brew" shellenv)" 2>/dev/null || true
@@ -74,6 +75,7 @@ if ! command -v brew >/dev/null 2>&1; then
         fi
     done
     export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+    echo "[0] Homebrew install script finished." >> "$LOG_FILE"
 fi
 
 if command -v brew >/dev/null 2>&1; then
