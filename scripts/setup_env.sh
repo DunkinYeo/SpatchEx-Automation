@@ -71,12 +71,32 @@ if [ -z "$PYTHON_EXE" ]; then
     echo ""
     echo "  ERROR  Python 3.10 or later not found."
     echo ""
-    echo "  Install options:"
-    echo "    A) Download: https://www.python.org/downloads/"
-    echo "    B) Homebrew:  brew install python@3.12"
-    echo ""
-    echo "[1] FAIL: python 3.10+ not found" >> "$LOG_FILE"
-    FAIL=1
+    if command -v brew >/dev/null 2>&1; then
+        echo "  Homebrew detected. Installing Python 3.12..."
+        echo "[1] Installing python via brew..." >> "$LOG_FILE"
+        brew install python@3.12
+        # Re-probe after install
+        for candidate in python3.12 python3.11 python3.10 python3; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+                PY_VERSION=$("$candidate" --version 2>&1 | awk '{print $2}')
+                PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
+                if [ "$PY_MINOR" -ge 10 ] 2>/dev/null; then
+                    PYTHON_EXE="$candidate"
+                    echo "  PASS  Python $PY_VERSION ($candidate)"
+                    echo "[1] PASS after brew install: $PY_VERSION" >> "$LOG_FILE"
+                    break
+                fi
+            fi
+        done
+    fi
+    if [ -z "$PYTHON_EXE" ]; then
+        echo "  Manual install required:"
+        echo "    A) Homebrew: brew install python@3.12"
+        echo "    B) Download: https://www.python.org/downloads/"
+        echo ""
+        echo "[1] FAIL: python 3.10+ not found" >> "$LOG_FILE"
+        FAIL=1
+    fi
 fi
 
 # ============================================================
@@ -85,15 +105,31 @@ fi
 echo ""
 echo "[2] Node.js / npm..."
 if ! command -v node >/dev/null 2>&1; then
-    echo ""
-    echo "  ERROR  Node.js not found."
-    echo ""
-    echo "  Install options:"
-    echo "    A) Download: https://nodejs.org/ (choose LTS version)"
-    echo "    B) Homebrew:  brew install node"
-    echo ""
-    echo "[2] FAIL: node not found" >> "$LOG_FILE"
-    FAIL=1
+    if command -v brew >/dev/null 2>&1; then
+        echo "  Node.js not found. Homebrew detected. Installing..."
+        echo "[2] Installing node via brew..." >> "$LOG_FILE"
+        brew install node
+        if ! command -v node >/dev/null 2>&1; then
+            echo "  ERROR  brew install node failed."
+            echo "  Manual install: https://nodejs.org/"
+            echo "[2] FAIL: brew install node failed" >> "$LOG_FILE"
+            FAIL=1
+        else
+            NODE_VER=$(node --version 2>&1)
+            echo "  PASS  Node.js $NODE_VER (installed via Homebrew)"
+            echo "[2] PASS after brew: node $NODE_VER" >> "$LOG_FILE"
+        fi
+    else
+        echo ""
+        echo "  ERROR  Node.js not found."
+        echo ""
+        echo "  Install options:"
+        echo "    A) Homebrew: brew install node"
+        echo "    B) Download: https://nodejs.org/ (choose LTS version)"
+        echo ""
+        echo "[2] FAIL: node not found" >> "$LOG_FILE"
+        FAIL=1
+    fi
 elif ! command -v npm >/dev/null 2>&1; then
     echo "  WARN  Node.js found but npm not detected."
     echo "  Reinstall Node.js from https://nodejs.org/"
@@ -136,17 +172,33 @@ else
         fi
     done
     if [ "$ADB_FOUND" -eq 0 ]; then
-        echo ""
-        echo "  ERROR  Android SDK not found."
-        echo ""
-        echo "  Install options:"
-        echo "    A) Install Android Studio: https://developer.android.com/studio"
-        echo "    B) Homebrew: brew install android-platform-tools"
-        echo ""
-        echo "  After installing, re-run install.sh."
-        echo ""
-        echo "[3] FAIL: adb not found" >> "$LOG_FILE"
-        exit 1
+        if command -v brew >/dev/null 2>&1; then
+            echo "  ADB not found. Homebrew detected. Installing android-platform-tools..."
+            echo "[3] Installing adb via brew..." >> "$LOG_FILE"
+            brew install android-platform-tools
+            if command -v adb >/dev/null 2>&1; then
+                ADB_VER=$(adb version 2>&1 | head -1)
+                echo "  PASS  $ADB_VER (installed via Homebrew)"
+                echo "[3] PASS after brew: $ADB_VER" >> "$LOG_FILE"
+                ADB_FOUND=1
+            else
+                echo "  ERROR  brew install android-platform-tools failed."
+                echo "[3] FAIL: brew install adb failed" >> "$LOG_FILE"
+            fi
+        fi
+        if [ "$ADB_FOUND" -eq 0 ]; then
+            echo ""
+            echo "  ERROR  ADB not found."
+            echo ""
+            echo "  Install options:"
+            echo "    A) Homebrew: brew install android-platform-tools"
+            echo "    B) Android Studio: https://developer.android.com/studio"
+            echo ""
+            echo "  After installing, re-run install.command."
+            echo ""
+            echo "[3] FAIL: adb not found" >> "$LOG_FILE"
+            exit 1
+        fi
     fi
 fi
 
