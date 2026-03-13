@@ -1,112 +1,135 @@
-============================================================
-  SpatchEx Automation (Mac)
-============================================================
+SpatchEx Automation (Mac)
 
-This tool is designed to automatically input symptoms during
-S-Patch Ex app testing.
+This tool automates symptom input during S-Patch Ex app testing.
 
-It helps automate long-running tests by periodically adding
-symptoms to the S-Patch Ex application.
+It periodically adds symptoms to the app during long-running tests,
+helping testers avoid manual repetitive input.
 
 
-------------------------------------------------------------
-  1. Installation
-------------------------------------------------------------
 
-  Run install.command
+────────────────────────────────
+1. Installation
+────────────────────────────────
 
-  Double-click install.command in Finder.
+Run install.command.
 
-  The installer will automatically prepare the following:
+Double-click install.command in Finder.
 
-    - Homebrew (if needed)
-    - Python 3.10+
-    - Node.js / npm
-    - Android platform-tools (adb)
-    - Appium
-    - Appium UiAutomator2 driver
-    - Python virtual environment (.venv)
-    - Python dependencies
+The installer will automatically prepare the following:
 
-  First-time installation may take 3-5 minutes.
-
-
-------------------------------------------------------------
-  2. Running the Program
-------------------------------------------------------------
-
-  After installation completes, run run.command.
-
-  Double-click run.command in Finder.
-
-  The script will:
-
-    - Activate Python environment
-    - Detect adb / Android SDK
-    - Start the Appium server
-    - Launch the Web UI
-
-  Your browser will automatically open:
-
-    http://127.0.0.1:5001
+• Homebrew (if needed)
+• Python 3.10+
+• Node.js / npm
+• Android platform-tools (adb)
+• Appium
+• Appium UiAutomator2 driver
+• Python virtual environment (.venv)
+• Python dependencies
 
 
-------------------------------------------------------------
-  3. Starting a Test
-------------------------------------------------------------
-
-  From the web interface configure:
-
-    - Device
-    - Test Name
-    - Tester Name
-    - Test Duration
-    - Symptom Interval
-    - Symptoms
-
-  Then click "Start Test".
-
-  The automation will begin controlling the device.
+First-time installation may take several minutes.
 
 
-------------------------------------------------------------
-  4. Requirements
-------------------------------------------------------------
 
-  - Android device must be connected via USB.
-  - USB Debugging must be enabled on the device.
-  - Internet connection is required during installation.
+────────────────────────────────
+2. Running the Program
+────────────────────────────────
 
+After installation completes, run run.command.
 
-------------------------------------------------------------
-  5. Notes
-------------------------------------------------------------
+Double-click run.command in Finder.
 
-  - Some steps may prompt for confirmation during installation.
-  - Homebrew installation may require your Mac password.
-  - Appium and driver installation may take a few minutes.
+The script will:
 
+• Activate Python environment
+• Detect Android SDK / adb
+• Start the Appium server
+• Launch the Web UI
 
-------------------------------------------------------------
-  6. Troubleshooting
-------------------------------------------------------------
+Your browser will automatically open:
 
-  If installation fails:
-
-  1) Check your internet connection.
-
-  2) Run the following in Terminal, then try again:
-
-       chmod +x install.command
-       chmod +x run.command
-
-  3) Run install.command again.
+http://127.0.0.1:5001
 
 
-------------------------------------------------------------
-  Support
-------------------------------------------------------------
 
-  If you encounter issues, please contact Dunkin.
+────────────────────────────────
+3. Starting a Test
+────────────────────────────────
 
-============================================================
+From the web interface configure:
+
+• Device
+• Test Name
+• Tester Name
+• Test Duration
+• Symptom Interval
+• Symptoms
+
+Then click "Start Test".
+
+The automation will begin controlling the device.
+
+
+
+────────────────────────────────
+4. Requirements
+────────────────────────────────
+
+• Android device must be connected via USB.
+• USB Debugging must be enabled on the device.
+• Internet connection is required during installation.
+
+
+
+────────────────────────────────
+5. Common Issues
+────────────────────────────────
+
+1️⃣ Device not detected
+
+Check that USB Debugging is enabled.
+
+You can verify with:
+
+adb devices
+
+
+
+2️⃣ install.command does not run
+
+Try:
+
+chmod +x install.command
+chmod +x run.command
+
+
+
+3️⃣ Browser does not open
+
+Open manually:
+
+http://127.0.0.1:5001
+
+
+
+4️⃣ Test does not start
+
+Check if the phone shows a USB debugging authorization popup.
+
+
+
+5️⃣ First run is slow
+
+The first run installs:
+
+• Appium
+• UiAutomator2 driver
+• Python packages
+
+
+
+────────────────────────────────
+Support
+────────────────────────────────
+
+If you encounter issues, please contact Dunkin.
