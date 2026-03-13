@@ -16,6 +16,10 @@
 #    [7] Create runtime folders
 # ============================================================
 
+# Bootstrap PATH so Homebrew tools (python3, node, npm, adb, appium)
+# are reachable when launched from Finder (non-login shell).
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+
 # Change to project root (scripts/ -> parent)
 cd "$(dirname "$0")/.." || {
     echo "  ERROR: Failed to change to project root."

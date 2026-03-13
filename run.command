@@ -18,6 +18,10 @@ cd "$(dirname "$0")" || {
     read -r _; exit 1
 }
 
+# Bootstrap PATH so Homebrew tools (python3, node, npm, adb, appium)
+# are reachable when launched from Finder (non-login shell).
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+
 LOG_FILE="/tmp/spatch_run_$(date +%Y%m%d_%H%M%S).log"
 echo "SpatchEx run started $(date)" >> "$LOG_FILE"
 
@@ -134,18 +138,28 @@ else
         fi
     fi
 
+    # Case E: adb reachable via PATH directly (e.g. brew install android-platform-tools).
+    # ANDROID_HOME is not set, but Appium and adb work fine with adb on PATH.
+    if [ "$SDK_FOUND" -eq 0 ] && command -v adb >/dev/null 2>&1; then
+        SDK_FOUND=1
+        echo "  INFO  ADB found via PATH (Homebrew / standalone install)."
+        echo "        ANDROID_HOME is not set; Appium will use adb from PATH."
+        echo "[run] ADB via PATH (no SDK root)" >> "$LOG_FILE"
+    fi
+
     if [ "$SDK_FOUND" -eq 0 ]; then
         echo ""
-        echo "  ERROR  Android SDK not found."
+        echo "  ERROR  Android SDK / ADB not found."
         echo ""
-        echo "  ANDROID_HOME and ANDROID_SDK_ROOT are not set,"
-        echo "  and adb was not found in PATH."
+        echo "  Neither ANDROID_HOME nor adb in PATH could be resolved."
         echo ""
         echo "  Install options:"
-        echo "    A) Install Android Studio: https://developer.android.com/studio"
-        echo "    B) Homebrew: brew install android-platform-tools"
+        echo "    A) Homebrew (recommended): brew install android-platform-tools"
+        echo "    B) Android Studio:         https://developer.android.com/studio"
         echo ""
-        echo "[run] FAIL: Android SDK not found" >> "$LOG_FILE"
+        echo "  After installing, open a new Terminal and re-run run.command."
+        echo ""
+        echo "[run] FAIL: ADB not found" >> "$LOG_FILE"
         read -r -p "  Press Enter to close... " _
         exit 1
     fi

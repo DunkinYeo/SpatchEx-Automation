@@ -61,11 +61,17 @@ MAC_SUBS = [
     ('"web/app.py"',                '"automation/web/app.py"'),
     ('$PYTHON web/app.py',          '$PYTHON automation/web/app.py'),
     ('python web/app.py',           'python automation/web/app.py'),
-    # requirements.txt
+    # requirements.txt (pip install + file-existence check)
     ('-r requirements.txt',          '-r automation/requirements.txt'),
+    ('-f "requirements.txt"',        '-f "automation/requirements.txt"'),
     # install.command: setup_env.sh path
     ('chmod +x scripts/setup_env.sh', 'chmod +x automation/scripts/setup_env.sh'),
     ('bash scripts/setup_env.sh',   'bash automation/scripts/setup_env.sh'),
+    # setup_env.sh: cd goes up one extra level in the packaged layout.
+    # Dev:  scripts/../        = project root (no patch)
+    # Pkg:  automation/scripts/../../ = ZIP root  (patched here)
+    # This MUST be matched before any shorter cd patterns.
+    ('cd "$(dirname "$0")/.."',     'cd "$(dirname "$0")/../.."'),
     # runtime paths (with trailing slash)
     ('"runtime/android-sdk/',       '"automation/runtime/android-sdk/'),
     ('"runtime/platform-tools/',    '"automation/runtime/platform-tools/'),

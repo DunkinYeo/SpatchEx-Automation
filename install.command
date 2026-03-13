@@ -11,6 +11,10 @@ cd "$(dirname "$0")" || {
   exit 1
 }
 
+# Bootstrap PATH so Homebrew tools (python3, node, npm, adb, appium)
+# are reachable when launched from Finder (non-login shell).
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+
 # Ensure setup script executable
 chmod +x scripts/setup_env.sh 2>/dev/null
 
