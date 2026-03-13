@@ -194,6 +194,15 @@ REM Web server runs in foreground -- keeps this window alive during the test.
 echo   Browser will open automatically when the server is ready.
 echo   Leave this window OPEN during the test.
 echo.
+REM -- Sleep prevention ----------------------------------------
+SET "_SLEEP_PS1=%TEMP%\spatch_sleep_%_TS%.ps1"
+SET "_SLEEP_PID_F=%TEMP%\spatch_sleep_%_TS%.pid"
+echo $PID ^| Set-Content '%_SLEEP_PID_F%' > "%_SLEEP_PS1%"
+echo Add-Type -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);' -Name W32 -Namespace NW -ErrorAction SilentlyContinue >> "%_SLEEP_PS1%"
+echo while ($true) { [NW.W32]::SetThreadExecutionState(0x80000001) ^| Out-Null; Start-Sleep 60 } >> "%_SLEEP_PS1%"
+start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%_SLEEP_PS1%"
+ping 127.0.0.1 -n 2 >nul 2>&1
+echo   Sleep prevention enabled during test run.
 IF EXIST ".venv\Scripts\python.exe" (
     .venv\Scripts\python.exe web\app.py
 ) ELSE (
@@ -203,6 +212,13 @@ IF EXIST ".venv\Scripts\python.exe" (
 REM -- Server exited --------------------------------------------
 echo.
 echo [run] Web server exited >> "%LOG%"
+REM Release sleep prevention
+IF EXIST "%_SLEEP_PID_F%" (
+    FOR /F "usebackq" %%P IN ("%_SLEEP_PID_F%") DO taskkill /PID %%P /F >nul 2>&1
+    del "%_SLEEP_PS1%" 2>nul
+    del "%_SLEEP_PID_F%" 2>nul
+    echo   Sleep prevention released.
+)
 echo   Web server has stopped.
 echo   Run STOP.bat to terminate any remaining services.
 echo.

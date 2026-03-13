@@ -251,10 +251,22 @@ echo "  Browser will open automatically when the server is ready."
 echo "  Leave this window OPEN during the test."
 echo ""
 
+# ── Sleep prevention ──────────────────────────────────────────
+CAFF_PID=""
+if command -v caffeinate >/dev/null 2>&1; then
+    caffeinate -i &
+    CAFF_PID=$!
+    echo "  Sleep prevention enabled during test run."
+fi
+
 $PYTHON web/app.py
 
 # ── Server exited ─────────────────────────────────────────────
 kill "$HEALTH_PID" 2>/dev/null || true
+if [ -n "$CAFF_PID" ]; then
+    kill "$CAFF_PID" 2>/dev/null || true
+    echo "  Sleep prevention released."
+fi
 echo ""
 echo "[run] Web server exited" >> "$LOG_FILE"
 echo "  Web server has stopped."
