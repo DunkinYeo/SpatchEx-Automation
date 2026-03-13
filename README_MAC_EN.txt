@@ -1,130 +1,112 @@
 ============================================================
-  SpatchEx UAT Tool  —  Mac Setup & Usage Guide
+  SpatchEx Automation (Mac)
 ============================================================
 
+This tool is designed to automatically input symptoms during
+S-Patch Ex app testing.
 
-------------------------------------------------------------
-  WHAT install.command DOES AND DOES NOT DO
-------------------------------------------------------------
-
-  install.command checks for required tools and:
-
-  AUTO-INSTALLS (no action needed from you):
-    - Appium          (via npm, if not found)
-    - UiAutomator2    (via appium driver, if not found)
-    - Python packages (via pip into .venv)
-
-  AUTO-INSTALLS IF HOMEBREW IS PRESENT:
-    - Node.js   (brew install node)
-    - ADB       (brew install android-platform-tools)
-    - Python    (brew install python@3.12)
-
-  REQUIRES MANUAL INSTALL IF HOMEBREW IS NOT PRESENT:
-    - Python 3.10+   https://www.python.org/downloads/
-    - Node.js        https://nodejs.org/
-    - ADB            brew install android-platform-tools
-                     (or Android Studio)
-
-  Homebrew is strongly recommended for a clean Mac.
-  Install Homebrew first if you do not already have it:
-
-    /bin/bash -c "$(curl -fsSL https://brew.sh/install.sh)"
-
-  Then run install.command — it will handle the rest.
+It helps automate long-running tests by periodically adding
+symptoms to the S-Patch Ex application.
 
 
 ------------------------------------------------------------
-  1. FIRST-TIME SETUP  (run once)
+  1. Installation
 ------------------------------------------------------------
 
-  1) Install Homebrew if not already installed:
+  Run install.command
 
-       /bin/bash -c "$(curl -fsSL https://brew.sh/install.sh)"
+  Double-click install.command in Finder.
 
-     If Homebrew is already installed, skip this step.
+  The installer will automatically prepare the following:
 
-  2) Connect your Android phone via USB cable.
+    - Homebrew (if needed)
+    - Python 3.10+
+    - Node.js / npm
+    - Android platform-tools (adb)
+    - Appium
+    - Appium UiAutomator2 driver
+    - Python virtual environment (.venv)
+    - Python dependencies
 
-  3) Enable USB Debugging on the phone:
-       Settings -> About Phone -> Software Information
-       -> Tap Build Number 7 times
-       Settings -> Developer Options -> USB Debugging ON
-
-  4) When the phone shows "Allow USB Debugging?" -- tap Allow.
-
-  5) Double-click  install.command
-
-     The installer will:
-     - Check for Python, Node.js, ADB
-     - Auto-install missing tools via Homebrew
-     - Install Appium and UiAutomator2 driver
-     - Set up the Python virtual environment
-
-  Note: macOS may show "cannot verify the developer."
-    - Right-click the file in Finder -> Open
-    - Or: System Settings -> Privacy & Security
-      -> click "Open Anyway" at the bottom
+  First-time installation may take 3-5 minutes.
 
 
 ------------------------------------------------------------
-  2. STARTING A TEST
+  2. Running the Program
 ------------------------------------------------------------
 
-  1) Open S-Patch EX and confirm ECG measurement is running.
+  After installation completes, run run.command.
 
-  2) Double-click  run.command
-     A browser window opens automatically:
-     http://127.0.0.1:5001
+  Double-click run.command in Finder.
 
-  3) In the browser:
-     - Select your connected device
-     - Click  Start Test
+  The script will:
 
+    - Activate Python environment
+    - Detect adb / Android SDK
+    - Start the Appium server
+    - Launch the Web UI
 
-------------------------------------------------------------
-  3. STOPPING A TEST
-------------------------------------------------------------
+  Your browser will automatically open:
 
-  Double-click  STOP.command
-    -- or --
-  Click  Stop Test  in the browser.
-    -- or --
-  Press Ctrl+C in the run.command terminal window.
+    http://127.0.0.1:5001
 
 
 ------------------------------------------------------------
-  4. TROUBLESHOOTING
+  3. Starting a Test
 ------------------------------------------------------------
 
-  install.command fails with "Python not found":
-    - Open Terminal and run: brew install python@3.12
-    - Then re-run install.command
+  From the web interface configure:
 
-  install.command fails with "Node.js not found":
-    - Open Terminal and run: brew install node
-    - Then re-run install.command
+    - Device
+    - Test Name
+    - Tester Name
+    - Test Duration
+    - Symptom Interval
+    - Symptoms
 
-  install.command fails with "ADB not found":
-    - Open Terminal and run: brew install android-platform-tools
-    - Then re-run install.command
+  Then click "Start Test".
 
-  Phone not detected when running run.command?
-    - Unplug and replug the USB cable
-    - In Terminal: adb devices
-    - Tap "Allow" on the phone if prompted
-
-  Browser doesn't open?
-    - Go to: http://127.0.0.1:5001  manually
-
-  Appium fails?
-    - Re-run install.command
+  The automation will begin controlling the device.
 
 
 ------------------------------------------------------------
-  5. TEAM DASHBOARD  (optional)
+  4. Requirements
 ------------------------------------------------------------
 
-  To monitor test progress from another machine,
-  see  README_TEAM_DASHBOARD_EN.txt
+  - Android device must be connected via USB.
+  - USB Debugging must be enabled on the device.
+  - Internet connection is required during installation.
+
+
+------------------------------------------------------------
+  5. Notes
+------------------------------------------------------------
+
+  - Some steps may prompt for confirmation during installation.
+  - Homebrew installation may require your Mac password.
+  - Appium and driver installation may take a few minutes.
+
+
+------------------------------------------------------------
+  6. Troubleshooting
+------------------------------------------------------------
+
+  If installation fails:
+
+  1) Check your internet connection.
+
+  2) Run the following in Terminal, then try again:
+
+       chmod +x install.command
+       chmod +x run.command
+
+  3) Run install.command again.
+
+
+------------------------------------------------------------
+  Support
+------------------------------------------------------------
+
+  If you encounter issues, please contact Dunkin.
 
 ============================================================
