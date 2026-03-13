@@ -1,10 +1,6 @@
 @echo off
 setlocal
-echo DEBUG: run.bat started
-pause
 chcp 65001 >nul
-echo DEBUG: current dir = %CD%
-pause
 cd /d "%~dp0"
 REM SpatchEx -- Launch Test Environment
 REM run.bat  (project root)
