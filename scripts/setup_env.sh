@@ -54,6 +54,28 @@ echo ""
 # [0] Homebrew  (required gate for all auto-installs)
 # ============================================================
 echo "[0] Homebrew..."
+if ! command -v brew >/dev/null 2>&1; then
+    echo "  Homebrew not found. Attempting automatic installation..."
+    echo "  (You may be prompted for your macOS password)"
+    echo "[0] Installing Homebrew..." >> "$LOG_FILE"
+
+    # NONINTERACTIVE=1 skips the "press RETURN to continue" prompt.
+    # A sudo password prompt may still appear -- type it when asked.
+    NONINTERACTIVE=1 /bin/bash -c \
+        "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+        >> "$LOG_FILE" 2>&1
+
+    # Bring Homebrew into PATH for the rest of this session.
+    # Apple Silicon installs to /opt/homebrew; Intel to /usr/local.
+    for _BREW_PREFIX in "/opt/homebrew" "/usr/local"; do
+        if [ -f "$_BREW_PREFIX/bin/brew" ]; then
+            eval "$("$_BREW_PREFIX/bin/brew" shellenv)" 2>/dev/null || true
+            break
+        fi
+    done
+    export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:$PATH"
+fi
+
 if command -v brew >/dev/null 2>&1; then
     BREW_VER=$(brew --version 2>&1 | head -1)
     echo "  PASS  $BREW_VER"
@@ -61,18 +83,16 @@ if command -v brew >/dev/null 2>&1; then
 else
     echo ""
     echo "  ============================================================"
-    echo "  Homebrew is required for automatic setup."
-    echo "  ============================================================"
-    echo ""
-    echo "  Please run this ONE command in Terminal, then re-run install.command:"
+    echo "  Automatic Homebrew installation failed."
+    echo "  Please install it manually with this ONE command:"
     echo ""
     echo "    /bin/bash -c \"\$(curl -fsSL https://brew.sh/install.sh)\""
     echo ""
-    echo "  After Homebrew is installed, double-click install.command again."
-    echo "  All remaining tools (Python, Node, ADB, Appium) will install"
-    echo "  automatically."
+    echo "  Then double-click install.command again."
+    echo "  All remaining tools will install automatically after that."
+    echo "  ============================================================"
     echo ""
-    echo "[0] FAIL: brew not found" >> "$LOG_FILE"
+    echo "[0] FAIL: brew not found after install attempt" >> "$LOG_FILE"
     exit 1
 fi
 
