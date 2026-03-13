@@ -145,7 +145,7 @@ def inject_symptom_event(
 
         # ── 4. Select each symptom ────────────────────────────────────
         for s in symptoms:
-            _tap_symptom_item(d, s)
+            _tap_symptom_item(d, s, picker_title=picker_title)
         last_step = "symptoms_selected"
 
         # ── 5. Handle 'Other' free-text input ────────────────────────
@@ -263,7 +263,12 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
     raise last_exc
 
 
-def _tap_symptom_item(d: AndroidDriver, symptom: str | list[str], scroll_tries: int = 3) -> None:
+def _tap_symptom_item(
+    d: AndroidDriver,
+    symptom: str | list[str],
+    scroll_tries: int = 3,
+    picker_title: str | list | None = None,
+) -> None:
     """
     Tap a single symptom item in the picker.
 
@@ -276,6 +281,7 @@ def _tap_symptom_item(d: AndroidDriver, symptom: str | list[str], scroll_tries: 
       3. Fallback: click the parent container row.
       4. Fallback: element.click() directly.
     If the element is not visible, scroll the list and retry up to scroll_tries times.
+    Before each scroll retry, validate that the picker is still open (if picker_title given).
     On final failure: screenshot + page source dump before raising.
     """
     from selenium.webdriver.common.by import By
@@ -293,6 +299,14 @@ def _tap_symptom_item(d: AndroidDriver, symptom: str | list[str], scroll_tries: 
         except Exception as exc:
             last_exc = exc
             if attempt < scroll_tries:
+                # Validate picker is still open before retrying.
+                if picker_title and not d.is_visible_text(picker_title):
+                    d.screenshot(f"picker_closed_{label}_attempt{attempt + 1}")
+                    _dump_page_source(d, f"picker_closed_{label}_attempt{attempt + 1}")
+                    raise RuntimeError(
+                        f"Symptom picker closed unexpectedly before "
+                        f"'{label}' could be selected (attempt {attempt + 1})"
+                    )
                 _scroll_symptom_list(d)
                 continue
             break
