@@ -142,14 +142,12 @@ def build_windows(out_dir: Path):
         # ── Root launcher scripts (path-patched) ─────────────────────
         _add(zf, ROOT / "install.bat",          "install.bat",  WIN_SUBS)
         _add(zf, ROOT / "run.bat",              "run.bat",      WIN_SUBS)
-        _add(zf, ROOT / "run_wifi.bat",         "run_wifi.bat", WIN_SUBS)
         _add(zf, ROOT / "STOP.bat",             "STOP.bat")
 
         # ── READMEs at root ──────────────────────────────────────────
         for fname in [
             "README_WINDOWS_KR.txt", "README_WINDOWS_EN.txt",
             "README_TEAM_DASHBOARD_KR.txt", "README_TEAM_DASHBOARD_EN.txt",
-            "README_WIFI_KR.txt", "README_WIFI_EN.txt",
         ]:
             _add(zf, ROOT / fname, fname)
 

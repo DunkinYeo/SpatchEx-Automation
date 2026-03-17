@@ -197,11 +197,11 @@ class AndroidDriver:
                 last_exc = e
         raise last_exc
 
-    def is_visible_text(self, text: str | list, contains: bool = True) -> bool:
+    def is_visible_text(self, text: str | list, contains: bool = True, timeout: int = 2) -> bool:
         texts = [text] if isinstance(text, str) else text
         for t in texts:
             try:
-                self.find(t, timeout=2, contains=contains)
+                self.find(t, timeout=timeout, contains=contains)
                 return True
             except Exception:
                 pass

@@ -131,7 +131,8 @@ def _run_once(cfg: dict, reporter: RunReporter, artifacts: ArtifactManager) -> N
     driver = dm.driver
     try:
         reporter.log_event("device_info", driver.get_device_info())
-        ensure_measurement_started(driver)
+        run_cfg_once = cfg.get("run") or {}
+        ensure_measurement_started(driver, duration_hours=int(run_cfg_once.get("duration_hours", 24)))
 
         if plan and plan[0].get("symptoms"):
             symptoms   = plan[0]["symptoms"]
@@ -236,7 +237,7 @@ def main():
         driver = dm.driver
         reporter.log_event("device_info", driver.get_device_info())
 
-        ensure_measurement_started(driver)
+        ensure_measurement_started(driver, duration_hours=duration_hours)
         reporter.log_event("measurement_started", {})
         log_event("measurement started")
 

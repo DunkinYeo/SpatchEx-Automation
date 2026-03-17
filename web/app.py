@@ -20,6 +20,8 @@ ARTIFACTS_DIR = ROOT / "artifacts"
 
 app = Flask(__name__)
 
+PORT = 5001
+
 # ── Shared state (single-user local tool) ────────────────────────────────────
 _state: dict = {"proc": None, "out_dir": None, "start_ts": None}
 _lock = threading.Lock()
@@ -31,18 +33,27 @@ _hub_lock = threading.Lock()
 # ── Selectors for spatch-ex (English first, Korean fallback) ──────────────────
 SPATCH_EX_SELECTORS = {
     # ── Measurement start flow ──────────────────────────────────────────
-    "start_now_text":       ["Start Now", "지금 시작", "시작하기"],
-    "consent_agree_text":   ["Agree", "동의"],
+    "measurement_status_screen_text": ["검사 진행 현황", "Test Progress", "Test Status"],
+    "start_now_text":           ["검사 시작", "Start Now", "지금 시작", "시작하기"],
+    "consent_all_agree_text":   ["모두 동의합니다", "Agree to All", "Agree All", "I hereby consent to the above all."],
+    "consent_agree_text":       ["Agree", "Accept", "동의"],
     "use_spatch_text":      ["Use S-Patch", "S-Patch 사용하기"],
-    "duration_sheet_title": ["Select a test period", "검사 기간을 선택해주세요"],
-    "duration_24h_text":    ["24 Hours", "24 시간"],
-    "duration_48h_text":    ["48 Hours", "48 시간"],
-    "duration_72h_text":    ["72 Hours", "72 시간"],
+    "duration_sheet_title": ["Select a test period", "Select the duration of test", "검사 기간을 선택해주세요."],
+    "duration_24h_text":    ["24 Hours", "24 h", "24 시간"],
+    "duration_48h_text":    ["48 Hours", "48 h", "48 시간"],
+    "duration_72h_text":    ["72 Hours", "72 h", "72 시간"],
     # ── Popups / dialogs (English + Korean) ────────────────────────────
     # Used to dismiss any blocking dialog before injection and after
     # background resume. All common confirm/dismiss button labels covered.
-    "confirm_text":         ["Confirm", "OK", "확인", "닫기", "계속"],
-    "offline_mode_text":    ["Offline", "오프라인"],
+    "confirm_text":             ["Confirm", "OK", "확인", "닫기", "계속"],
+    "connection_lost_text":             ["S-Patch connection lost", "연결이 끊겼습니다", "기기 연결 상태를 확인하세요"],
+    "test_info_title_text":             ["검사 정보", "Test Information"],
+    "offline_mode_text":                ["오프라인 모드로 실행", "No test found", "Run in offline mode", "Offline"],
+    "offline_agree_text":               ["확인 없이 오프라인 모드로 진행하길 원합니다", "I want to proceed in offline mode without checking.", "I want to proceed in offline mode"],
+    "offline_confirm_text":             ["오프라인 모드로 실행", "Run in offline mode", "Continue"],
+    "battery_warning_text":             ["새 배터리가 아님", "Not a New Battery"],
+    "battery_confirm_checkbox_text":    ["검사를 시작하겠습니다", "I will start the test.", "I will start the test"],
+    "battery_confirm_start_text":       ["검사 시작", "Start Now", "Start Test"],
     # ── Main measurement screen ─────────────────────────────────────────
     # Tab name differs between firmware / app versions; cover both variants.
     "main_tab_text":        ["My ECG", "나의 ECG", "나의 심전도"],
@@ -186,6 +197,28 @@ threading.Thread(target=_sync_localhost_session, daemon=True).start()
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+def _get_lan_ip() -> str:
+    """Return the machine's LAN IP (first non-loopback IPv4), or '' on failure."""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return ""
+
+
+@app.route("/api/local-ip")
+def api_local_ip():
+    """Return the server's LAN IP and port for Team Hub auto-fill."""
+    ip = _get_lan_ip()
+    try:
+        port = int(request.host.split(":")[-1])
+    except Exception:
+        port = PORT
+    return jsonify({"ip": ip, "port": port})
 
 
 @app.route("/api/init")
@@ -525,7 +558,7 @@ if __name__ == "__main__":
         local_ip = socket.gethostbyname(socket.gethostname())
     except Exception:
         local_ip = "127.0.0.1"
-    threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:5001")).start()
-    print(f"\n  SpatchEx Test UI (local)   -> http://127.0.0.1:5001")
-    print(f"  Share on local network     -> http://{local_ip}:5001\n")
-    app.run(host="0.0.0.0", port=5001, debug=False, threaded=True)
+    threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}")).start()
+    print(f"\n  SpatchEx Test UI (local)   -> http://127.0.0.1:{PORT}")
+    print(f"  Share on local network     -> http://{local_ip}:{PORT}\n")
+    app.run(host="0.0.0.0", port=PORT, debug=False, threaded=True)

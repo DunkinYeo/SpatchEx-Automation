@@ -136,6 +136,31 @@ IF EXIST "runtime\appium\node_modules\.bin\appium.cmd" (
 )
 IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=appium"
 
+REM -- [4a] Optional WiFi ADB auto-connect (SPATCH_DEVICE_IP) ----
+IF NOT "%SPATCH_DEVICE_IP%"=="" (
+    echo   Attempting WiFi connection to %SPATCH_DEVICE_IP%:5555 ...
+    echo [run] Auto-connect to %SPATCH_DEVICE_IP%:5555 >> "%LOG%"
+    adb connect %SPATCH_DEVICE_IP%:5555 >nul 2>&1
+    ping 127.0.0.1 -n 3 >nul 2>&1
+    SET "_WIFI_OK=0"
+    FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
+        IF "%%A"=="%SPATCH_DEVICE_IP%:5555" IF "%%B"=="device" SET "_WIFI_OK=1"
+    )
+    IF "%_WIFI_OK%"=="1" (
+        echo   WiFi device connected: %SPATCH_DEVICE_IP%:5555
+        echo [run] WiFi connected OK >> "%LOG%"
+    ) ELSE (
+        echo   WiFi connection failed: %SPATCH_DEVICE_IP%:5555
+        echo [run] WiFi connect failed (non-blocking) >> "%LOG%"
+        echo.
+        echo   Hints:
+        echo     - Make sure phone and PC are on the same WiFi network
+        echo     - Verify USB Debugging is enabled on the device
+        echo     - Confirm device IP: Settings ^> About phone ^> Status
+    )
+    echo.
+)
+
 REM -- [5] ADB device check (warn only -- does NOT block startup)
 echo   Checking connected devices...
 adb version >nul 2>&1
@@ -145,11 +170,19 @@ IF ERRORLEVEL 1 (
     GOTO :start_appium
 )
 SET "_DEV_OK=0"
-FOR /F "skip=1 tokens=2" %%S IN ('adb devices 2^>nul') DO (
-    IF "%%S"=="device" SET "_DEV_OK=1"
+FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
+    IF "%%B"=="device" (
+        SET "_DEV_OK=1"
+        echo %%A | findstr /C:":" >nul 2>&1
+        IF NOT ERRORLEVEL 1 (
+            echo     [WiFi] %%A
+        ) ELSE (
+            echo     [USB ] %%A
+        )
+    )
 )
 IF "%_DEV_OK%"=="1" (
-    echo   PASS  Android device connected and authorized.
+    echo   PASS  Android device(s) connected and authorized.
     echo [run] device connected >> "%LOG%"
     GOTO :start_appium
 )

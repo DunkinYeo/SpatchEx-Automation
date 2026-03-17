@@ -180,14 +180,20 @@ echo "[run] ANDROID_HOME=$ANDROID_HOME" >> "$LOG_FILE"
 
 # ── [6a] Optional WiFi ADB auto-connect (SPATCH_DEVICE_IP) ───
 if [ -n "$SPATCH_DEVICE_IP" ] && command -v adb >/dev/null 2>&1; then
-    echo "  Attempting WiFi ADB connection..."
+    echo "  Attempting WiFi connection to ${SPATCH_DEVICE_IP}:5555 ..."
     adb connect "${SPATCH_DEVICE_IP}:5555" >/dev/null 2>&1
     sleep 2
-    if adb devices 2>/dev/null | grep -q $'\tdevice'; then
-        echo "  WiFi device connected."
+    if adb devices 2>/dev/null | grep -qF "${SPATCH_DEVICE_IP}:5555"$'\t'"device"; then
+        echo "  WiFi device connected: ${SPATCH_DEVICE_IP}:5555"
     else
-        echo "  WiFi connection failed."
+        echo "  WiFi connection failed: ${SPATCH_DEVICE_IP}:5555"
+        echo ""
+        echo "  Hints:"
+        echo "    - Make sure phone and PC are on the same WiFi network"
+        echo "    - Verify USB Debugging is enabled on the device"
+        echo "    - Confirm device IP: Settings > About phone > Status"
     fi
+    echo ""
 fi
 
 # ── [7] ADB device check (warn only -- does NOT block startup) ─
@@ -196,15 +202,27 @@ if ! command -v adb >/dev/null 2>&1; then
     echo "  WARN  ADB not found. Device check skipped."
     echo "[run] WARN: adb not found" >> "$LOG_FILE"
 else
+    ADB_OUT=$(adb devices 2>/dev/null | tail -n +2 | grep -v '^$')
     DEV_OK=0
+    USB_LIST=""
+    WIFI_LIST=""
     while IFS= read -r line; do
         case "$line" in
-            *$'\t'device) DEV_OK=1 ;;
+            *$'\t'device)
+                DEV_OK=1
+                serial="${line%%$'\t'*}"
+                case "$serial" in
+                    *:5555) WIFI_LIST="$WIFI_LIST    [WiFi] $serial\n" ;;
+                    *)      USB_LIST="$USB_LIST    [USB ] $serial\n" ;;
+                esac
+                ;;
         esac
-    done < <(adb devices 2>/dev/null | tail -n +2)
+    done <<< "$ADB_OUT"
 
     if [ "$DEV_OK" -eq 1 ]; then
-        echo "  PASS  Android device connected and authorized."
+        echo "  PASS  Android device(s) connected and authorized:"
+        [ -n "$USB_LIST"  ] && printf "$USB_LIST"
+        [ -n "$WIFI_LIST" ] && printf "$WIFI_LIST"
         echo "[run] device connected" >> "$LOG_FILE"
     else
         echo ""
