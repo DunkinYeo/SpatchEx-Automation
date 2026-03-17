@@ -29,6 +29,26 @@ echo          adb tcpip 5555
 echo        (or enable Wireless Debugging in Developer Options)
 echo.
 
+REM -- [0] Auto-connect via SPATCH_DEVICE_IP (optional) --------
+IF NOT "%SPATCH_DEVICE_IP%"=="" (
+    echo   Attempting WiFi ADB connection...
+    echo [wifi] Auto-connect to %SPATCH_DEVICE_IP%:5555 >> "%LOG%"
+    adb connect %SPATCH_DEVICE_IP%:5555 >nul 2>&1
+    ping 127.0.0.1 -n 3 >nul 2>&1
+    SET "_AUTO_OK=0"
+    FOR /F "skip=1 tokens=2" %%S IN ('adb devices 2^>nul') DO (
+        IF "%%S"=="device" SET "_AUTO_OK=1"
+    )
+    IF "%_AUTO_OK%"=="1" (
+        echo   WiFi device connected.
+        echo [wifi] Auto-connect OK >> "%LOG%"
+    ) ELSE (
+        echo   WiFi connection failed.
+        echo [wifi] Auto-connect failed (non-blocking) >> "%LOG%"
+    )
+    echo.
+)
+
 REM -- [1] Prompt for IP:Port ----------------------------------
 :prompt_ip
 echo   Enter Android device IP:Port
