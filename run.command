@@ -178,6 +178,18 @@ echo "  -------------------"
 echo ""
 echo "[run] ANDROID_HOME=$ANDROID_HOME" >> "$LOG_FILE"
 
+# ── [6a] Optional WiFi ADB auto-connect (SPATCH_DEVICE_IP) ───
+if [ -n "$SPATCH_DEVICE_IP" ] && command -v adb >/dev/null 2>&1; then
+    echo "  Attempting WiFi ADB connection..."
+    adb connect "${SPATCH_DEVICE_IP}:5555" >/dev/null 2>&1
+    sleep 2
+    if adb devices 2>/dev/null | grep -q $'\tdevice'; then
+        echo "  WiFi device connected."
+    else
+        echo "  WiFi connection failed."
+    fi
+fi
+
 # ── [7] ADB device check (warn only -- does NOT block startup) ─
 echo "  Checking connected devices..."
 if ! command -v adb >/dev/null 2>&1; then
