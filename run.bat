@@ -195,15 +195,15 @@ FOR /F "usebackq tokens=*" %%I IN (`powershell -NoProfile -Command "adb -s '%_US
 IF NOT DEFINED _WIFI_IP GOTO :start_appium
 echo   Saved WiFi device IP: %_WIFI_IP%
 echo [run] WiFi IP saved: %_WIFI_IP% >> "%LOG%"
-IF NOT EXIST "runtime" mkdir runtime >nul 2>&1
-powershell -NoProfile -Command "$ts=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');[ordered]@{device_id='%_USB_SERIAL%';wifi_ip='%_WIFI_IP%';tcp_port=5555;updated_at=$ts}|ConvertTo-Json -Compress|Set-Content 'runtime\adb_wifi_device.json'"
+IF NOT EXIST "automation\runtime" mkdir automation\runtime >nul 2>&1
+powershell -NoProfile -Command "$ts=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');[ordered]@{device_id='%_USB_SERIAL%';wifi_ip='%_WIFI_IP%';tcp_port=5555;updated_at=$ts}|ConvertTo-Json -Compress|Set-Content 'automation\runtime\adb_wifi_device.json'"
 GOTO :start_appium
 
 :no_usb_device
 REM ── Try cached WiFi before showing warning ───────────────────
 SET "_CACHED_ADDR="
-IF EXIST "runtime\adb_wifi_device.json" (
-    FOR /F "usebackq tokens=*" %%C IN (`powershell -NoProfile -Command "try{$d=Get-Content 'runtime\adb_wifi_device.json'^|ConvertFrom-Json;Write-Output($d.wifi_ip+':'+$d.tcp_port)}catch{}"`) DO SET "_CACHED_ADDR=%%C"
+IF EXIST "automation\runtime\adb_wifi_device.json" (
+    FOR /F "usebackq tokens=*" %%C IN (`powershell -NoProfile -Command "try{$d=Get-Content 'automation\runtime\adb_wifi_device.json'^|ConvertFrom-Json;Write-Output($d.wifi_ip+':'+$d.tcp_port)}catch{}"`) DO SET "_CACHED_ADDR=%%C"
 )
 IF NOT DEFINED _CACHED_ADDR GOTO :show_no_device_warn
 echo   Attempting saved WiFi ADB connection...

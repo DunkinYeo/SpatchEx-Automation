@@ -436,23 +436,10 @@ async function init() {
     showFinished(s.exit_code);
   }
 
-  // Auto-fill Team Hub URL if field is empty.
-  // If opened via localhost / 127.0.0.1, fetch LAN IP from /api/local-ip
-  // so the URL is reachable by other devices on the same network.
+  // Auto-fill Team Hub URL with central UAT server address if field is empty.
   const hubField = document.getElementById('hub-url');
-  if (!hubField.value) {
-    const host = window.location.hostname;
-    const isLocal = (host === 'localhost' || host === '127.0.0.1');
-    if (isLocal) {
-      try {
-        const li = await fetch('/api/local-ip').then(r => r.json());
-        hubField.value = li.ip ? `http://${li.ip}:${li.port}` : window.location.origin;
-      } catch (_) {
-        hubField.value = window.location.origin;
-      }
-    } else {
-      hubField.value = window.location.origin;
-    }
+  if (hubField && !hubField.value) {
+    hubField.value = "http://192.168.0.4:5001";
   }
 }
 

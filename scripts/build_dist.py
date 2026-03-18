@@ -44,9 +44,6 @@ WIN_SUBS = [
     ('%CD%\\runtime"',              '%CD%\\automation\\runtime"'),
     ('%CD%\\runtime\\',             '%CD%\\automation\\runtime\\'),
     ("DestinationPath 'runtime'",   "DestinationPath 'automation\\runtime'"),
-    # WiFi cache file path (single-quoted in PowerShell strings, double-quoted in IF EXIST)
-    ("'runtime\\adb_wifi_device.json'",  "'automation\\runtime\\adb_wifi_device.json'"),
-    ('"runtime\\adb_wifi_device.json"',  '"automation\\runtime\\adb_wifi_device.json"'),
     # IF NOT EXIST guards -- must come before mkdir substitutions
     ('IF NOT EXIST "logs"',         'IF NOT EXIST "automation\\logs"'),
     # mkdir runtime / logs
@@ -84,9 +81,6 @@ MAC_SUBS = [
     # mkdir
     ('mkdir -p logs runtime',       'mkdir -p automation/logs automation/runtime'),
     ('mkdir -p runtime',            'mkdir -p automation/runtime'),
-    # WiFi cache file path (single-quoted in shell strings, double-quoted in if checks)
-    ("'runtime/adb_wifi_device.json'",  "'automation/runtime/adb_wifi_device.json'"),
-    ('"runtime/adb_wifi_device.json"',  '"automation/runtime/adb_wifi_device.json"'),
 ]
 
 

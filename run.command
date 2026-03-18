@@ -239,15 +239,15 @@ else
             if [ -n "$_WIFI_IP" ]; then
                 echo "  Saved WiFi device IP: $_WIFI_IP"
                 echo "[run] WiFi IP saved: $_WIFI_IP" >> "$LOG_FILE"
-                mkdir -p runtime
+                mkdir -p automation/runtime
                 printf '{"device_id":"%s","wifi_ip":"%s","tcp_port":5555,"updated_at":"%s"}\n' \
                     "$FIRST_USB_SERIAL" "$_WIFI_IP" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-                    > "runtime/adb_wifi_device.json"
+                    > "automation/runtime/adb_wifi_device.json"
             fi
         fi
     else
         # ── Try cached WiFi before showing warning ──────────────────
-        _WIFI_CACHE="runtime/adb_wifi_device.json"
+        _WIFI_CACHE="automation/runtime/adb_wifi_device.json"
         if [ -f "$_WIFI_CACHE" ]; then
             _CACHED_IP=$(python3 -c "import json; d=json.load(open('$_WIFI_CACHE')); print(d.get('wifi_ip',''))" 2>/dev/null)
             _CACHED_PORT=$(python3 -c "import json; d=json.load(open('$_WIFI_CACHE')); print(d.get('tcp_port',5555))" 2>/dev/null)
