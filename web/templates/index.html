@@ -334,6 +334,12 @@
       <!-- Next inject -->
       <div id="next-inject-box" style="display:none">
         Next injection: <strong id="next-inject-time">-</strong>
+        <span id="next-inject-countdown" style="color:#6b7280;font-size:.85em;margin-left:4px"></span>
+      </div>
+
+      <!-- Completion message -->
+      <div id="completion-msg" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;color:#166534;border-radius:6px;font-weight:600">
+        &#10003; Test completed successfully
       </div>
 
       <!-- Event log -->
@@ -405,9 +411,11 @@ function fmtEvent(ev) {
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
-let pollTimer   = null;
-let seenEvents  = 0;
-let runStartTs  = null;
+let pollTimer      = null;
+let seenEvents     = 0;
+let runStartTs     = null;
+let nextInjectTs   = null;
+let countdownTimer = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -507,6 +515,17 @@ async function startAppium() {
 
 // ── Start test ────────────────────────────────────────────────────────────────
 document.getElementById('start-btn').addEventListener('click', async () => {
+  // ── Pre-flight: device + Appium check ────────────────────────────────────
+  let preCheck = null;
+  try { preCheck = await fetch('/api/init').then(r => r.json()); } catch {}
+  const preErrors = [];
+  if (!preCheck?.devices?.length) preErrors.push('No device connected');
+  if (!preCheck?.appium)          preErrors.push('Appium is not running');
+  if (preErrors.length) {
+    alert('Cannot start test:\n - ' + preErrors.join('\n - '));
+    return;
+  }
+
   const device = document.getElementById('device-select').value;
   if (!device) { alert('Please select a connected device.'); return; }
 
@@ -571,16 +590,35 @@ function showFinished(code) {
   const chip = document.getElementById('run-chip');
   chip.className = 'chip ' + (code === 0 ? 'chip-ok' : 'chip-err');
   chip.textContent = code === 0 ? 'Complete' : 'Failed';
+  const msg = document.getElementById('completion-msg');
+  if (msg) msg.style.display = code === 0 ? '' : 'none';
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────────
+function startCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    const el = document.getElementById('next-inject-countdown');
+    if (!el || !nextInjectTs) { if (el) el.textContent = ''; return; }
+    const sec = Math.round((nextInjectTs - Date.now()) / 1000);
+    el.textContent = sec > 0 ? `(in ${sec}s)` : '';
+  }, 1000);
+}
+function stopCountdown() {
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  const el = document.getElementById('next-inject-countdown');
+  if (el) el.textContent = '';
+}
+
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   poll();
   pollTimer = setInterval(poll, 2000);
+  startCountdown();
 }
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  stopCountdown();
 }
 
 async function poll() {
@@ -665,8 +703,10 @@ function updateNextInject(events) {
   if (runAt && new Date(runAt) > new Date()) {
     box.style.display = '';
     time.textContent  = new Date(runAt).toLocaleTimeString();
+    nextInjectTs = new Date(runAt);
   } else {
     box.style.display = 'none';
+    nextInjectTs = null;
   }
 }
 

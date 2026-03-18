@@ -72,7 +72,23 @@ def inject_symptom_event(
             d.reporter.log_event("conn_check_popup_dismissed", {})
             d.wait_idle(1.0)
 
-        # ── 2b-2. Handle 연결 끊김 (Bluetooth disconnection) popup ───
+        # ── 2b-2. Dismiss battery low popup (배터리 잔량 부족 / Battery Low 958) ─
+        # Appears during measurement when S-Patch battery is depleted.
+        # Korean: "배터리 잔량 부족 (958)" / English: "Battery Low (958)" (exact wording TBC)
+        # Action: tap 확인 / OK to dismiss and continue.
+        battery_low = d.sel.get(
+            "battery_low_text",
+            ["배터리 잔량 부족", "Battery Low", "Insufficient Battery", "Low Battery"],
+        )
+        if d.is_visible_text(battery_low, contains=True):
+            d.reporter.log_event("battery_low_popup_detected", {})
+            confirm_btn = d.sel.get("confirm_text", ["확인", "OK", "Confirm"])
+            if d.is_visible_text(confirm_btn):
+                d.tap_text(confirm_btn, timeout=5, contains=False)
+            d.reporter.log_event("battery_low_popup_dismissed", {})
+            d.wait_idle(1.0)
+
+        # ── 2b-4. Handle 연결 끊김 (Bluetooth disconnection) popup ───
         # Retries until the main screen is restored or max attempts exceeded.
         disconnect = d.sel.get(
             "device_disconnect_text",

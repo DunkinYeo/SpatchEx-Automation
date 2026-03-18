@@ -30,7 +30,8 @@ echo "  =============================================="
 echo "  |   SpatchEx -- Launch Test Environment      |"
 echo "  =============================================="
 echo ""
-echo "  Log: $LOG_FILE"
+echo "  If issues occur, please send this log file:"
+echo "  $LOG_FILE"
 echo ""
 
 # ── [1] Verify project root ──────────────────────────────────
@@ -206,6 +207,7 @@ else
     DEV_OK=0
     USB_LIST=""
     WIFI_LIST=""
+    FIRST_USB_SERIAL=""
     while IFS= read -r line; do
         case "$line" in
             *$'\t'device)
@@ -213,7 +215,9 @@ else
                 serial="${line%%$'\t'*}"
                 case "$serial" in
                     *:5555) WIFI_LIST="$WIFI_LIST    [WiFi] $serial\n" ;;
-                    *)      USB_LIST="$USB_LIST    [USB ] $serial\n" ;;
+                    *)      USB_LIST="$USB_LIST    [USB ] $serial\n"
+                            [ -z "$FIRST_USB_SERIAL" ] && FIRST_USB_SERIAL="$serial"
+                            ;;
                 esac
                 ;;
         esac
@@ -224,14 +228,53 @@ else
         [ -n "$USB_LIST"  ] && printf "$USB_LIST"
         [ -n "$WIFI_LIST" ] && printf "$WIFI_LIST"
         echo "[run] device connected" >> "$LOG_FILE"
+        # ── Prepare ADB over WiFi and save device IP (non-blocking) ─
+        if [ -n "$FIRST_USB_SERIAL" ] && command -v adb >/dev/null 2>&1; then
+            echo "  Preparing ADB over WiFi..."
+            adb -s "$FIRST_USB_SERIAL" tcpip 5555 >/dev/null 2>&1
+            sleep 1
+            _WIFI_IP=$(adb -s "$FIRST_USB_SERIAL" shell ip route 2>/dev/null \
+                | grep -oE 'src [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' \
+                | awk '{print $2}' | head -1)
+            if [ -n "$_WIFI_IP" ]; then
+                echo "  Saved WiFi device IP: $_WIFI_IP"
+                echo "[run] WiFi IP saved: $_WIFI_IP" >> "$LOG_FILE"
+                mkdir -p runtime
+                printf '{"device_id":"%s","wifi_ip":"%s","tcp_port":5555,"updated_at":"%s"}\n' \
+                    "$FIRST_USB_SERIAL" "$_WIFI_IP" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                    > "runtime/adb_wifi_device.json"
+            fi
+        fi
     else
-        echo ""
-        echo "  WARN  No Android device detected."
-        echo "        Connect your phone via USB and enable USB Debugging."
-        echo "        The web UI will still open. Connect the device before"
-        echo "        clicking \"Start Test\" in the browser."
-        echo ""
-        echo "[run] WARN: no device" >> "$LOG_FILE"
+        # ── Try cached WiFi before showing warning ──────────────────
+        _WIFI_CACHE="runtime/adb_wifi_device.json"
+        if [ -f "$_WIFI_CACHE" ]; then
+            _CACHED_IP=$(python3 -c "import json; d=json.load(open('$_WIFI_CACHE')); print(d.get('wifi_ip',''))" 2>/dev/null)
+            _CACHED_PORT=$(python3 -c "import json; d=json.load(open('$_WIFI_CACHE')); print(d.get('tcp_port',5555))" 2>/dev/null)
+            if [ -n "$_CACHED_IP" ] && [ -n "$_CACHED_PORT" ]; then
+                echo "  Attempting saved WiFi ADB connection..."
+                echo "[run] Attempting cached WiFi: ${_CACHED_IP}:${_CACHED_PORT}" >> "$LOG_FILE"
+                adb connect "${_CACHED_IP}:${_CACHED_PORT}" >/dev/null 2>&1
+                sleep 2
+                if adb devices 2>/dev/null | grep -qF "${_CACHED_IP}:${_CACHED_PORT}"$'\t'"device"; then
+                    echo "  Saved WiFi device connected."
+                    echo "[run] Cached WiFi connected OK" >> "$LOG_FILE"
+                    DEV_OK=1
+                else
+                    echo "  Saved WiFi connection failed."
+                    echo "[run] Cached WiFi connect failed" >> "$LOG_FILE"
+                fi
+            fi
+        fi
+        if [ "$DEV_OK" -ne 1 ]; then
+            echo ""
+            echo "  WARN  No Android device detected."
+            echo "        Connect your phone via USB and enable USB Debugging."
+            echo "        The web UI will still open. Connect the device before"
+            echo "        clicking \"Start Test\" in the browser."
+            echo ""
+            echo "[run] WARN: no device" >> "$LOG_FILE"
+        fi
     fi
 fi
 
@@ -293,6 +336,10 @@ $PYTHON web/app.py
 
 # ── Server exited ─────────────────────────────────────────────
 kill "$HEALTH_PID" 2>/dev/null || true
+if [ -n "$APPIUM_PID" ]; then
+    kill "$APPIUM_PID" 2>/dev/null || true
+    echo "  Appium server stopped."
+fi
 if [ -n "$CAFF_PID" ]; then
     kill "$CAFF_PID" 2>/dev/null || true
     echo "  Sleep prevention released."

@@ -20,7 +20,8 @@ echo   +==============================================+
 echo   ^|   SpatchEx -- Launch Test Environment       ^|
 echo   +==============================================+
 echo.
-echo   Log: %LOG%
+echo   If issues occur, please send this log file:
+echo   %LOG%
 echo.
 
 REM -- [1] Verify project root ---------------------------------
@@ -171,21 +172,56 @@ IF ERRORLEVEL 1 (
 )
 SET "_DEV_OK=0"
 FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
+    IF "%%B"=="device" SET "_DEV_OK=1"
+)
+IF "%_DEV_OK%"=="0" GOTO :no_usb_device
+
+echo   PASS  Android device connected and authorized.
+echo [run] device connected >> "%LOG%"
+REM ── Prepare ADB over WiFi and save device IP (non-blocking) ──
+echo   Preparing ADB over WiFi...
+SET "_USB_SERIAL="
+FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
     IF "%%B"=="device" (
-        SET "_DEV_OK=1"
-        echo %%A | findstr /C:":" >nul 2>&1
-        IF NOT ERRORLEVEL 1 (
-            echo     [WiFi] %%A
-        ) ELSE (
-            echo     [USB ] %%A
-        )
+        echo %%A| findstr ":" >nul 2>&1
+        IF ERRORLEVEL 1 IF NOT DEFINED _USB_SERIAL SET "_USB_SERIAL=%%A"
     )
 )
+IF NOT DEFINED _USB_SERIAL GOTO :start_appium
+adb -s "%_USB_SERIAL%" tcpip 5555 >nul 2>&1
+ping 127.0.0.1 -n 2 >nul 2>&1
+SET "_WIFI_IP="
+FOR /F "usebackq tokens=*" %%I IN (`powershell -NoProfile -Command "adb -s '%_USB_SERIAL%' shell ip route 2^>$null ^| Select-String 'src\s+([\d.]+)' ^| ForEach-Object { $_.Matches[0].Groups[1].Value } ^| Select-Object -First 1 2^>$null"`) DO SET "_WIFI_IP=%%I"
+IF NOT DEFINED _WIFI_IP GOTO :start_appium
+echo   Saved WiFi device IP: %_WIFI_IP%
+echo [run] WiFi IP saved: %_WIFI_IP% >> "%LOG%"
+IF NOT EXIST "runtime" mkdir runtime >nul 2>&1
+powershell -NoProfile -Command "$ts=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');[ordered]@{device_id='%_USB_SERIAL%';wifi_ip='%_WIFI_IP%';tcp_port=5555;updated_at=$ts}|ConvertTo-Json -Compress|Set-Content 'runtime\adb_wifi_device.json'"
+GOTO :start_appium
+
+:no_usb_device
+REM ── Try cached WiFi before showing warning ───────────────────
+SET "_CACHED_ADDR="
+IF EXIST "runtime\adb_wifi_device.json" (
+    FOR /F "usebackq tokens=*" %%C IN (`powershell -NoProfile -Command "try{$d=Get-Content 'runtime\adb_wifi_device.json'^|ConvertFrom-Json;Write-Output($d.wifi_ip+':'+$d.tcp_port)}catch{}"`) DO SET "_CACHED_ADDR=%%C"
+)
+IF NOT DEFINED _CACHED_ADDR GOTO :show_no_device_warn
+echo   Attempting saved WiFi ADB connection...
+echo [run] Attempting cached WiFi: %_CACHED_ADDR% >> "%LOG%"
+adb connect %_CACHED_ADDR% >nul 2>&1
+ping 127.0.0.1 -n 3 >nul 2>&1
+FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
+    IF "%%A"=="%_CACHED_ADDR%" IF "%%B"=="device" SET "_DEV_OK=1"
+)
 IF "%_DEV_OK%"=="1" (
-    echo   PASS  Android device(s) connected and authorized.
-    echo [run] device connected >> "%LOG%"
+    echo   Saved WiFi device connected.
+    echo [run] Cached WiFi connected OK >> "%LOG%"
     GOTO :start_appium
 )
+echo   Saved WiFi connection failed.
+echo [run] Cached WiFi connect failed >> "%LOG%"
+
+:show_no_device_warn
 echo.
 echo   WARN  No Android device detected.
 echo         Connect your phone via USB and enable USB Debugging.
@@ -241,6 +277,8 @@ IF EXIST ".venv\Scripts\python.exe" (
 REM -- Server exited --------------------------------------------
 echo.
 echo [run] Web server exited >> "%LOG%"
+REM Stop Appium if started by this script
+taskkill /FI "WINDOWTITLE eq SpatchEx - Appium*" /F >nul 2>&1
 REM Release sleep prevention
 IF EXIST "%_SLEEP_PID_F%" (
     FOR /F "usebackq" %%P IN ("%_SLEEP_PID_F%") DO taskkill /PID %%P /F >nul 2>&1
