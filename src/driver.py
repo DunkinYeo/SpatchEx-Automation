@@ -164,12 +164,11 @@ class AndroidDriver:
 
     def ensure_session(self):
         """Check session health; reconnect if dead.
-        Proactively re-establishes ADB WiFi before checking the session —
-        after host sleep/wake the ADB TCP connection is dropped but the
-        Appium session may still appear alive, causing bring_to_foreground
-        and subsequent UI operations to fail silently.
+        After host sleep/wake the ADB TCP connection drops, which makes
+        is_session_alive() raise a socket/connection error → False.
+        reconnect() then calls _ensure_adb_connected() to restore the
+        WiFi ADB link before recreating the Appium session.
         """
-        self._ensure_adb_connected()
         if not self.is_session_alive():
             logging.warning("[SESSION] driver lost — session not alive")
             self.reporter.log_event("session_lost", {"reason": "session_not_alive"})

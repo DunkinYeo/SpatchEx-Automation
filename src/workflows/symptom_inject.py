@@ -294,8 +294,8 @@ def _tap_symptom_item(
 
     Strategy per attempt:
       1. Locate the element by textContains (all language alternatives tried).
-      2. Tap via coordinates (most reliable on React Native).
-      3. Fallback: click the parent container row.
+      2. Tap via coordinates (most reliable on React Native; verified by picker close).
+      3. Fallback: click the parent container row (TouchableOpacity).
       4. Fallback: element.click() directly.
     If the element is not visible, scroll the list and retry up to scroll_tries times.
     Before each scroll retry, validate that the picker is still open (if picker_title given).
@@ -328,17 +328,7 @@ def _tap_symptom_item(
                 continue
             break
 
-        # --- click parent container row (TouchableOpacity -- targets React Native
-        #     touch handler directly, bypasses coordinate system) ---
-        try:
-            el.find_element(By.XPATH, "..").click()
-            d.wait_idle(0.5)
-            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
-                return
-        except Exception:
-            pass
-
-        # --- tap via coordinates ---
+        # --- tap via coordinates (most reliable on React Native) ---
         try:
             loc = el.location
             sz = el.size
@@ -346,10 +336,15 @@ def _tap_symptom_item(
             cy = loc["y"] + sz["height"] // 2
             d.drv.tap([(cx, cy)])
             d.wait_idle(0.5)
-            # Verify the tap actually registered: for auto-close pickers the
-            # title disappears after selection. If it is still visible the
-            # tap did not reach the React Native touch handler → fall through
-            # to element.click() fallback below.
+            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
+                return
+        except Exception:
+            pass
+
+        # --- fallback: click parent container row (TouchableOpacity) ---
+        try:
+            el.find_element(By.XPATH, "..").click()
+            d.wait_idle(0.5)
             if not picker_title or not d.is_visible_text(picker_title, timeout=1):
                 return
         except Exception:
