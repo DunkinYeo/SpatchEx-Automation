@@ -157,6 +157,7 @@ def inject_symptom_event(
         )
         _wait_for_picker(d, picker_title, timeout=10)
         d.screenshot("symptom_picker_open")
+        d.wait_idle(1.0)  # allow React Native list items to become fully interactive
         last_step = "picker_open"
 
         # ── 4. Select each symptom ────────────────────────────────────
@@ -327,6 +328,16 @@ def _tap_symptom_item(
                 continue
             break
 
+        # --- click parent container row (TouchableOpacity -- targets React Native
+        #     touch handler directly, bypasses coordinate system) ---
+        try:
+            el.find_element(By.XPATH, "..").click()
+            d.wait_idle(0.5)
+            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
+                return
+        except Exception:
+            pass
+
         # --- tap via coordinates ---
         try:
             loc = el.location
@@ -338,17 +349,9 @@ def _tap_symptom_item(
             # Verify the tap actually registered: for auto-close pickers the
             # title disappears after selection. If it is still visible the
             # tap did not reach the React Native touch handler → fall through
-            # to element-level click fallbacks below.
+            # to element.click() fallback below.
             if not picker_title or not d.is_visible_text(picker_title, timeout=1):
                 return
-        except Exception:
-            pass
-
-        # --- fallback: click parent container row ---
-        try:
-            el.find_element(By.XPATH, "..").click()
-            d.wait_idle(0.3)
-            return
         except Exception:
             pass
 
