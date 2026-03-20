@@ -43,6 +43,7 @@ class AndroidDriver:
         self.sel = selectors
         self.artifacts = artifacts
         self.reporter = reporter
+        self._last_adb_reconnect_at: float = 0.0
         self.drv = self._connect()
 
     # ------------------------------------------------------------------
@@ -69,15 +70,73 @@ class AndroidDriver:
         self.reporter.log_event("appium_connect", {"server": server})
         return webdriver.Remote(server, options=self._build_options())
 
+    def _ensure_adb_connected(self) -> None:
+        """
+        Re-establish WiFi ADB before creating a new Appium session.
+        The ADB WiFi TCP connection is dropped when the host computer sleeps.
+        Reads the cached address from automation/runtime/adb_wifi_device.json,
+        or uses the UDID directly if it is already an ip:port address.
+        Non-blocking — errors are logged but never raised.
+        """
+        import json
+        import os
+
+        udid = self.cfg.get("udid", "")
+        wifi_addr = None
+
+        # Case 1: UDID is already a WiFi address (ip:port, no leading slash)
+        if udid and ":" in udid and not udid.startswith("/"):
+            wifi_addr = udid
+
+        # Case 2: read cached address written by run.command / run.bat
+        if not wifi_addr:
+            cache = "automation/runtime/adb_wifi_device.json"
+            if os.path.exists(cache):
+                try:
+                    with open(cache) as f:
+                        data = json.load(f)
+                    ip = data.get("wifi_ip", "")
+                    port = data.get("tcp_port", 5555)
+                    if ip:
+                        wifi_addr = f"{ip}:{port}"
+                except Exception:
+                    pass
+
+        if not wifi_addr:
+            return
+
+        # Cooldown: skip if already attempted within the last 30 seconds.
+        # Prevents duplicate reconnect calls within the same injection cycle
+        # regardless of where ensure_session() is invoked.
+        now = time.monotonic()
+        if now - self._last_adb_reconnect_at < 30:
+            return
+        self._last_adb_reconnect_at = now
+
+        try:
+            self.reporter.log_event("adb_reconnect_attempt", {"addr": wifi_addr})
+            result = subprocess.run(
+                ["adb", "connect", wifi_addr],
+                capture_output=True, text=True, timeout=10,
+            )
+            output = result.stdout.strip()
+            self.reporter.log_event("adb_reconnect_result", {"addr": wifi_addr, "output": output})
+            # Only sleep for a genuinely new connection, not "already connected"
+            if "connected" in output.lower() and "already" not in output.lower():
+                time.sleep(2)  # let ADB stabilize before Appium connects
+        except Exception as e:
+            self.reporter.log_event("adb_reconnect_failed", {"addr": wifi_addr, "error": str(e)})
+
     def reconnect(self):
         """
         Re-establish Appium session after a crash or timeout.
-        After reconnecting, brings the app to foreground so the recovered
-        session lands on the right screen. The scheduler's health checks
-        (ensure_measurement_started) will verify UI state.
+        Re-establishes the ADB WiFi connection first (dropped on host sleep),
+        then creates a new Appium session and brings the app to foreground.
         """
         logging.warning("[SESSION] recreating driver")
         self.reporter.log_event("session_recreating", {})
+        self._last_adb_reconnect_at = 0.0  # reset cooldown: real disconnection must always reconnect
+        self._ensure_adb_connected()
         try:
             self.drv.quit()
         except Exception:
@@ -104,7 +163,13 @@ class AndroidDriver:
             return False
 
     def ensure_session(self):
-        """Check session health; reconnect if dead."""
+        """Check session health; reconnect if dead.
+        Proactively re-establishes ADB WiFi before checking the session —
+        after host sleep/wake the ADB TCP connection is dropped but the
+        Appium session may still appear alive, causing bring_to_foreground
+        and subsequent UI operations to fail silently.
+        """
+        self._ensure_adb_connected()
         if not self.is_session_alive():
             logging.warning("[SESSION] driver lost — session not alive")
             self.reporter.log_event("session_lost", {"reason": "session_not_alive"})

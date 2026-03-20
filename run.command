@@ -231,12 +231,22 @@ else
         # ── Prepare ADB over WiFi and save device IP (non-blocking) ─
         if [ -n "$FIRST_USB_SERIAL" ] && command -v adb >/dev/null 2>&1; then
             echo "  Preparing ADB over WiFi..."
-            adb -s "$FIRST_USB_SERIAL" tcpip 5555 >/dev/null 2>&1
-            sleep 1
             _WIFI_IP=$(adb -s "$FIRST_USB_SERIAL" shell ip route 2>/dev/null \
-                | grep -oE 'src [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' \
-                | awk '{print $2}' | head -1)
+              | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' \
+              | head -1)
+            echo "  DEBUG USB SERIAL: $FIRST_USB_SERIAL"
+            echo "  DEBUG WIFI IP: $_WIFI_IP"
             if [ -n "$_WIFI_IP" ]; then
+                adb -s "$FIRST_USB_SERIAL" tcpip 5555 >/dev/null 2>&1
+                sleep 2
+                adb connect "${_WIFI_IP}:5555" >/dev/null 2>&1
+                if adb devices 2>/dev/null | grep -qF "${_WIFI_IP}:5555"$'\t'"device"; then
+                    echo "  WiFi device connected: ${_WIFI_IP}:5555"
+                    echo "[run] WiFi connected OK" >> "$LOG_FILE"
+                else
+                    echo "  WiFi connection failed: ${_WIFI_IP}:5555"
+                    echo "[run] WiFi connect failed (non-blocking)" >> "$LOG_FILE"
+                fi
                 echo "  Saved WiFi device IP: $_WIFI_IP"
                 echo "[run] WiFi IP saved: $_WIFI_IP" >> "$LOG_FILE"
                 mkdir -p automation/runtime
@@ -326,13 +336,15 @@ echo ""
 
 # ── Sleep prevention ──────────────────────────────────────────
 CAFF_PID=""
-if command -v caffeinate >/dev/null 2>&1; then
-    caffeinate -i &
-    CAFF_PID=$!
-    echo "  Sleep prevention enabled during test run."
-fi
+echo "  Sleep prevention enabled during test run."
 
-$PYTHON web/app.py
+# Wrap Python inside caffeinate so assertions are held for the
+# entire web server lifetime (most reliable: caffeinate exits with Python).
+if command -v caffeinate >/dev/null 2>&1; then
+    caffeinate -dims $PYTHON web/app.py
+else
+    $PYTHON web/app.py
+fi
 
 # ── Server exited ─────────────────────────────────────────────
 kill "$HEALTH_PID" 2>/dev/null || true

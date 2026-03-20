@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
 REM SpatchEx -- Launch Test Environment
@@ -147,7 +147,7 @@ IF NOT "%SPATCH_DEVICE_IP%"=="" (
     FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
         IF "%%A"=="%SPATCH_DEVICE_IP%:5555" IF "%%B"=="device" SET "_WIFI_OK=1"
     )
-    IF "%_WIFI_OK%"=="1" (
+    IF "!_WIFI_OK!"=="1" (
         echo   WiFi device connected: %SPATCH_DEVICE_IP%:5555
         echo [run] WiFi connected OK >> "%LOG%"
     ) ELSE (
@@ -188,15 +188,43 @@ FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
     )
 )
 IF NOT DEFINED _USB_SERIAL GOTO :start_appium
-adb -s "%_USB_SERIAL%" tcpip 5555 >nul 2>&1
-ping 127.0.0.1 -n 2 >nul 2>&1
 SET "_WIFI_IP="
-FOR /F "usebackq tokens=*" %%I IN (`powershell -NoProfile -Command "adb -s '%_USB_SERIAL%' shell ip route 2^>$null ^| Select-String 'src\s+([\d.]+)' ^| ForEach-Object { $_.Matches[0].Groups[1].Value } ^| Select-Object -First 1 2^>$null"`) DO SET "_WIFI_IP=%%I"
+FOR /F "tokens=1-10" %%a IN ('adb -s "%_USB_SERIAL%" shell ip route 2^>nul') DO (
+    IF "%%a"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%b"
+    IF "%%b"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%c"
+    IF "%%c"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%d"
+    IF "%%d"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%e"
+    IF "%%e"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%f"
+    IF "%%f"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%g"
+    IF "%%g"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%h"
+    IF "%%h"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%i"
+    IF "%%i"=="src" IF NOT DEFINED _WIFI_IP SET "_WIFI_IP=%%j"
+)
+echo   DEBUG USB SERIAL: %_USB_SERIAL%
+echo   DEBUG WIFI IP: %_WIFI_IP%
+echo   DEBUG SAVE PATH: %CD%\automation\runtime\adb_wifi_device.json
 IF NOT DEFINED _WIFI_IP GOTO :start_appium
+adb -s "%_USB_SERIAL%" tcpip 5555 >nul 2>&1
+ping 127.0.0.1 -n 3 >nul 2>&1
+adb connect %_WIFI_IP%:5555 >nul 2>&1
+SET "_WIFI_CONN=0"
+FOR /F "skip=1 tokens=1,2" %%A IN ('adb devices 2^>nul') DO (
+    IF "%%A"=="%_WIFI_IP%:5555" IF "%%B"=="device" SET "_WIFI_CONN=1"
+)
+IF "!_WIFI_CONN!"=="1" (
+    echo   WiFi device connected: %_WIFI_IP%:5555
+    echo [run] WiFi connected OK >> "%LOG%"
+) ELSE (
+    echo   WiFi connection failed: %_WIFI_IP%:5555
+    echo [run] WiFi connect failed (non-blocking) >> "%LOG%"
+)
 echo   Saved WiFi device IP: %_WIFI_IP%
 echo [run] WiFi IP saved: %_WIFI_IP% >> "%LOG%"
 IF NOT EXIST "automation\runtime" mkdir automation\runtime >nul 2>&1
-powershell -NoProfile -Command "$ts=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');[ordered]@{device_id='%_USB_SERIAL%';wifi_ip='%_WIFI_IP%';tcp_port=5555;updated_at=$ts}|ConvertTo-Json -Compress|Set-Content 'automation\runtime\adb_wifi_device.json'"
+powershell -NoProfile -Command ^
+  "$ts=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');" ^
+  "$obj=[ordered]@{device_id='%_USB_SERIAL%';wifi_ip='%_WIFI_IP%';tcp_port=5555;updated_at=$ts};" ^
+  "$obj | ConvertTo-Json -Compress | Set-Content -LiteralPath 'automation\runtime\adb_wifi_device.json'"
 GOTO :start_appium
 
 :no_usb_device
@@ -263,8 +291,9 @@ REM -- Sleep prevention ----------------------------------------
 SET "_SLEEP_PS1=%TEMP%\spatch_sleep_%_TS%.ps1"
 SET "_SLEEP_PID_F=%TEMP%\spatch_sleep_%_TS%.pid"
 echo $PID ^| Set-Content '%_SLEEP_PID_F%' > "%_SLEEP_PS1%"
-echo Add-Type -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);' -Name W32 -Namespace NW -ErrorAction SilentlyContinue >> "%_SLEEP_PS1%"
-echo while ($true) { [NW.W32]::SetThreadExecutionState(0x80000001) ^| Out-Null; Start-Sleep 60 } >> "%_SLEEP_PS1%"
+echo try { Add-Type -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);' -Name W32 -Namespace NW } catch {} >> "%_SLEEP_PS1%"
+echo $wsh = New-Object -ComObject WScript.Shell >> "%_SLEEP_PS1%"
+echo while ($true) { try { [NW.W32]::SetThreadExecutionState(0x80000003) ^| Out-Null } catch {}; $wsh.SendKeys('+{F15}'); Start-Sleep 30 } >> "%_SLEEP_PS1%"
 start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%_SLEEP_PS1%"
 ping 127.0.0.1 -n 2 >nul 2>&1
 echo   Sleep prevention enabled during test run.

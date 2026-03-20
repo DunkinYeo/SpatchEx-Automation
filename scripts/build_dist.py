@@ -90,16 +90,27 @@ def _patch(text: str, subs: list) -> str:
     return text
 
 
+def _to_crlf(text: str) -> str:
+    """Normalise line endings to CRLF (required by Windows cmd.exe)."""
+    return text.replace('\r\n', '\n').replace('\n', '\r\n')
+
+
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def _add(zf: zipfile.ZipFile, src: Path, arc: str, subs: list = None):
-    """Add a file to the ZIP, optionally applying text substitutions."""
+def _add(zf: zipfile.ZipFile, src: Path, arc: str, subs: list = None,
+         crlf: bool = False):
+    """Add a file to the ZIP, optionally applying text substitutions.
+
+    crlf=True normalises line endings to CRLF before writing (Windows batch files).
+    """
     if not src.exists():
         return
-    if subs:
-        content = _patch(_read(src), subs)
+    if subs or crlf:
+        content = _patch(_read(src), subs or [])
+        if crlf:
+            content = _to_crlf(content)
         zf.writestr(arc, content)
     else:
         zf.write(src, arc)
@@ -139,10 +150,10 @@ def build_windows(out_dir: Path):
     name = f"SpatchEx-UAT-Windows-{TODAY}.zip"
     path = out_dir / name
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
-        # ── Root launcher scripts (path-patched) ─────────────────────
-        _add(zf, ROOT / "install.bat",          "install.bat",  WIN_SUBS)
-        _add(zf, ROOT / "run.bat",              "run.bat",      WIN_SUBS)
-        _add(zf, ROOT / "STOP.bat",             "STOP.bat")
+        # ── Root launcher scripts (path-patched, CRLF enforced) ─────
+        _add(zf, ROOT / "install.bat",          "install.bat",  WIN_SUBS, crlf=True)
+        _add(zf, ROOT / "run.bat",              "run.bat",      WIN_SUBS, crlf=True)
+        _add(zf, ROOT / "STOP.bat",             "STOP.bat",     crlf=True)
 
         # ── READMEs at root ──────────────────────────────────────────
         for fname in [
@@ -155,7 +166,7 @@ def build_windows(out_dir: Path):
         P = "automation"
         _add(zf, ROOT / "unblock_and_run.ps1",  f"{P}/tools/unblock_and_run.ps1")
         _add(zf, ROOT / "requirements.txt",    f"{P}/requirements.txt")
-        _add(zf, ROOT / "selftest.bat",         f"{P}/selftest.bat", WIN_SUBS)
+        _add(zf, ROOT / "selftest.bat",         f"{P}/selftest.bat", WIN_SUBS, crlf=True)
 
         _add_dir(zf, ROOT / "src",        f"{P}/src")
         _add_dir(zf, ROOT / "web",        f"{P}/web")
