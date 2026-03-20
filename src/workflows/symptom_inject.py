@@ -334,8 +334,13 @@ def _tap_symptom_item(
             cx = loc["x"] + sz["width"] // 2
             cy = loc["y"] + sz["height"] // 2
             d.drv.tap([(cx, cy)])
-            d.wait_idle(0.3)
-            return
+            d.wait_idle(0.5)
+            # Verify the tap actually registered: for auto-close pickers the
+            # title disappears after selection. If it is still visible the
+            # tap did not reach the React Native touch handler → fall through
+            # to element-level click fallbacks below.
+            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
+                return
         except Exception:
             pass
 
