@@ -224,7 +224,7 @@ def inject_symptom_event(
             # Also capture current UI state if possible
             try:
                 from selenium.webdriver.common.by import By
-                ui_elements = d.drv.find_elements(By.TAG_NAME, "android.view.View")
+                ui_elements = d.drv.find_elements(By.CLASS_NAME, "android.view.View")
                 ui_text = ";".join([el.text for el in ui_elements[:20] if el.text])
                 d.reporter.log_event(
                     "inject_failure_ui_state",
@@ -294,8 +294,8 @@ def _tap_symptom_item(
 
     Strategy per attempt:
       1. Locate the element by textContains (all language alternatives tried).
-      2. Tap via coordinates (most reliable on React Native; verified by picker close).
-      3. Fallback: click the parent container row (TouchableOpacity).
+      2. Click the nearest clickable ancestor (TouchableOpacity) via XPATH.
+      3. Fallback: tap via coordinates.
       4. Fallback: element.click() directly.
     If the element is not visible, scroll the list and retry up to scroll_tries times.
     Before each scroll retry, validate that the picker is still open (if picker_title given).
@@ -328,22 +328,29 @@ def _tap_symptom_item(
                 continue
             break
 
-        # --- tap via coordinates (most reliable on React Native) ---
+        # --- click nearest clickable ancestor (TouchableOpacity) ---
+        # React Native renders Text inside View layers; the clickable
+        # TouchableOpacity may be 1-3 levels above the text element.
+        # XPATH ancestor-or-self finds the first element with clickable=true,
+        # which is the actual touch handler that onPress is attached to.
         try:
-            loc = el.location
-            sz = el.size
-            cx = loc["x"] + sz["width"] // 2
-            cy = loc["y"] + sz["height"] // 2
-            d.drv.tap([(cx, cy)])
+            clickable = el.find_element(
+                By.XPATH, "ancestor-or-self::*[@clickable='true'][1]"
+            )
+            clickable.click()
             d.wait_idle(0.5)
             if not picker_title or not d.is_visible_text(picker_title, timeout=1):
                 return
         except Exception:
             pass
 
-        # --- fallback: click parent container row (TouchableOpacity) ---
+        # --- fallback: tap via coordinates ---
         try:
-            el.find_element(By.XPATH, "..").click()
+            loc = el.location
+            sz = el.size
+            cx = loc["x"] + sz["width"] // 2
+            cy = loc["y"] + sz["height"] // 2
+            d.drv.tap([(cx, cy)])
             d.wait_idle(0.5)
             if not picker_title or not d.is_visible_text(picker_title, timeout=1):
                 return
