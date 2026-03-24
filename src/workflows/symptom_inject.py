@@ -157,6 +157,7 @@ def inject_symptom_event(
         )
         _wait_for_picker(d, picker_title, timeout=10)
         d.screenshot("symptom_picker_open")
+        _dump_page_source(d, "picker_open_diagnostic")  # capture picker XML for debugging
         d.wait_idle(1.0)  # allow React Native list items to become fully interactive
         last_step = "picker_open"
 
@@ -301,6 +302,7 @@ def _tap_symptom_item(
     Before each scroll retry, validate that the picker is still open (if picker_title given).
     On final failure: screenshot + page source dump before raising.
     """
+    import logging
     from selenium.webdriver.common.by import By
 
     texts = [symptom] if isinstance(symptom, str) else symptom
@@ -328,6 +330,12 @@ def _tap_symptom_item(
                 continue
             break
 
+        logging.info("[SYMPTOM] attempt=%d element found: %r tag=%s bounds=%s clickable=%s",
+                     attempt, label,
+                     el.tag_name,
+                     el.get_attribute("bounds"),
+                     el.get_attribute("clickable"))
+
         # --- click nearest clickable ancestor (TouchableOpacity) ---
         # React Native renders Text inside View layers; the clickable
         # TouchableOpacity may be 1-3 levels above the text element.
@@ -337,12 +345,17 @@ def _tap_symptom_item(
             clickable = el.find_element(
                 By.XPATH, "ancestor-or-self::*[@clickable='true'][1]"
             )
+            logging.info("[SYMPTOM] strategy=ancestor_click tag=%s bounds=%s",
+                         clickable.tag_name, clickable.get_attribute("bounds"))
             clickable.click()
             d.wait_idle(0.5)
-            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
+            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            logging.info("[SYMPTOM] after ancestor_click picker_still_open=%s", picker_still_open)
+            if not picker_title or not picker_still_open:
+                logging.info("[SYMPTOM] success via ancestor_click")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logging.info("[SYMPTOM] ancestor_click failed: %s", e)
 
         # --- fallback: tap via coordinates ---
         try:
@@ -350,19 +363,29 @@ def _tap_symptom_item(
             sz = el.size
             cx = loc["x"] + sz["width"] // 2
             cy = loc["y"] + sz["height"] // 2
+            logging.info("[SYMPTOM] strategy=coord_tap cx=%d cy=%d", cx, cy)
             d.drv.tap([(cx, cy)])
             d.wait_idle(0.5)
-            if not picker_title or not d.is_visible_text(picker_title, timeout=1):
+            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            logging.info("[SYMPTOM] after coord_tap picker_still_open=%s", picker_still_open)
+            if not picker_title or not picker_still_open:
+                logging.info("[SYMPTOM] success via coord_tap")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logging.info("[SYMPTOM] coord_tap failed: %s", e)
 
         # --- fallback: element.click() ---
         try:
+            logging.info("[SYMPTOM] strategy=element_click")
             el.click()
             d.wait_idle(0.3)
-            return
+            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            logging.info("[SYMPTOM] after element_click picker_still_open=%s", picker_still_open)
+            if not picker_title or not picker_still_open:
+                logging.info("[SYMPTOM] success via element_click")
+                return
         except Exception as exc:
+            logging.info("[SYMPTOM] element_click failed: %s", exc)
             last_exc = exc
 
         if attempt < scroll_tries:
