@@ -349,7 +349,7 @@ def _tap_symptom_item(
     for attempt in range(scroll_tries + 1):
         # --- locate (try all language alternatives) ---
         try:
-            el = _find_symptom_element(d, texts, timeout=5)
+            el = _find_symptom_element(d, texts, timeout=10)
         except Exception as exc:
             last_exc = exc
             if attempt < scroll_tries:
