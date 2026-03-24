@@ -127,15 +127,20 @@ echo [run] ANDROID_HOME=%ANDROID_HOME% >> "%LOG%"
 REM -- Ensure npm global bin is in PATH (Appium installed via npm)
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
-REM -- Bundled Node / Appium (optional, falls back to global) --
+REM -- Bundled Node / Appium --
 IF EXIST "runtime\node\node.exe" (
     SET "PATH=%CD%\runtime\node;%CD%\runtime\node\node_modules\.bin;%PATH%"
 )
 SET "APPIUM_CMD="
 IF EXIST "runtime\appium\node_modules\.bin\appium.cmd" (
     SET "APPIUM_CMD=%CD%\runtime\appium\node_modules\.bin\appium.cmd"
+    echo   Appium: packaged runtime found.
+    echo [run] Appium command: %CD%\runtime\appium\node_modules\.bin\appium.cmd (packaged) >> "%LOG%"
+) ELSE (
+    SET "APPIUM_CMD=appium"
+    echo   Appium: packaged runtime NOT found -- using global appium.
+    echo [run] Appium command: appium (global fallback) >> "%LOG%"
 )
-IF "%APPIUM_CMD%"=="" SET "APPIUM_CMD=appium"
 
 REM -- [4a] Optional WiFi ADB auto-connect (SPATCH_DEVICE_IP) ----
 IF NOT "%SPATCH_DEVICE_IP%"=="" (
