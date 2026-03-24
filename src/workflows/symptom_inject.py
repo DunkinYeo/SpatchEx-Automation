@@ -281,31 +281,33 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
     """
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
 
     last_exc: Exception = RuntimeError(f"None of {texts!r} found")
 
-    # Pass 1: content-desc match.
-    # Try each label in reverse order (English last in YAML → tried first) so
-    # the picker's English-only content-desc is reached without waiting on Korean.
-    # The first label gets the full timeout (picker settle); subsequent labels
-    # get a brief instant attempt since if the first failed the picker is ready.
-    for i, t in enumerate(reversed(texts)):
-        wait_sec = timeout if i == 0 else 0.5
-        try:
-            locator = (
-                By.ANDROID_UIAUTOMATOR,
-                f'new UiSelector().descriptionContains("{t}")',
-            )
-            return WebDriverWait(d.drv, wait_sec).until(
-                EC.presence_of_element_located(locator)
-            )
-        except Exception as exc:
-            last_exc = exc
+    # Pass 1: content-desc match — single WebDriverWait that polls ALL labels
+    # each cycle. Works for both English and Korean apps: whichever label
+    # matches the picker's content-desc is found within the full timeout,
+    # with no per-language penalty.
+    def _any_desc(driver):
+        for t in texts:
+            try:
+                el = driver.find_element(
+                    By.ANDROID_UIAUTOMATOR,
+                    f'new UiSelector().descriptionContains("{t}")',
+                )
+                return el
+            except Exception:
+                pass
+        return False
+
+    try:
+        return WebDriverWait(d.drv, timeout).until(_any_desc)
+    except Exception as exc:
+        last_exc = exc
 
     # Pass 2: textContains fallback (finds inner TextView)
     per = max(timeout // max(len(texts), 1), 1)
-    for t in reversed(texts):
+    for t in texts:
         try:
             return d.find(t, timeout=per, contains=True)
         except Exception as exc:
