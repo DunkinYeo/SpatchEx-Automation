@@ -269,15 +269,41 @@ def _wait_for_picker(d: AndroidDriver, title: str | list, timeout: int = 10) -> 
 def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
     """
     Try each text in `texts` (English first, Korean second, etc.) and return
-    the first element found. Raises the last exception if none match.
+    the first element found.
+
+    Strategy (in order):
+      1. content-desc (accessibility label) — returns the outer clickable ViewGroup
+         directly, which is exactly what we need for React Native TouchableOpacity.
+      2. text / textContains — returns the inner non-clickable TextView as fallback.
+    Raises the last exception if none match.
     """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
     per = max(timeout // len(texts), 2)
     last_exc: Exception = RuntimeError(f"None of {texts!r} found")
+
+    # Pass 1: content-desc match (finds the clickable outer ViewGroup directly)
+    for t in texts:
+        try:
+            locator = (
+                By.ANDROID_UIAUTOMATOR,
+                f'new UiSelector().descriptionContains("{t}")',
+            )
+            return WebDriverWait(d.drv, per).until(
+                EC.presence_of_element_located(locator)
+            )
+        except Exception as exc:
+            last_exc = exc
+
+    # Pass 2: text match fallback (finds inner TextView)
     for t in texts:
         try:
             return d.find(t, timeout=per, contains=True)
         except Exception as exc:
             last_exc = exc
+
     raise last_exc
 
 
