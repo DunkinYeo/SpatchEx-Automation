@@ -157,8 +157,10 @@ def inject_symptom_event(
         )
         _wait_for_picker(d, picker_title, timeout=10)
         d.screenshot("symptom_picker_open")
-        _dump_page_source(d, "picker_open_diagnostic")  # capture picker XML for debugging
-        d.wait_idle(1.0)  # allow React Native list items to become fully interactive
+        # NOTE: do NOT call _dump_page_source here — page_source triggers
+        # UiAutomator2 accessibility events that dismiss the React Native
+        # bottom-sheet picker before we can tap anything.
+        d.wait_idle(0.3)  # brief settle; keep this short so picker stays open
         last_step = "picker_open"
 
         # ── 4. Select each symptom ────────────────────────────────────
