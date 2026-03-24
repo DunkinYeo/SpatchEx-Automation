@@ -13,10 +13,40 @@ On failure:
   - last successful step is recorded in JSONL
 """
 
+import logging
 import time
 
 from src.driver import AndroidDriver
 from src.retry import retry
+
+# Picker always shows English labels — map Korean alternatives to English
+_KO_TO_EN: dict[str, str] = {
+    "두근거림":    "Palpitations",
+    "가슴 통증":   "Chest Pain",
+    "어지러움":    "Dizziness",
+    "호흡 가파름": "Short Breath",
+    "흉통":        "Chest Pain",
+    "호흡곤란":    "Short Breath",
+}
+_KNOWN_EN: frozenset[str] = frozenset({"Chest Pain", "Palpitations", "Dizziness", "Short Breath"})
+
+
+def _resolve_english(texts: list[str]) -> str | None:
+    """Return the canonical English picker label from a bilingual candidate list.
+
+    Checks in order:
+      1. Any element that is already a known English label.
+      2. Any element that maps via the Korean → English table.
+    Returns None if no English label can be resolved.
+    """
+    for t in texts:
+        if t in _KNOWN_EN:
+            return t
+    for t in texts:
+        en = _KO_TO_EN.get(t)
+        if en:
+            return en
+    return None
 
 
 @retry(tries=3, delay=3)
@@ -268,48 +298,46 @@ def _wait_for_picker(d: AndroidDriver, title: str | list, timeout: int = 10) -> 
     raise RuntimeError(f"Symptom picker did not open within {timeout}s (title: {title!r})")
 
 
-def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
+def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 10):
     """
-    Try each text in `texts` (English first, Korean second, etc.) and return
-    the first element found.
+    Locate the symptom item element in the picker.
 
-    Strategy (in order):
-      1. content-desc (accessibility label) — returns the outer clickable ViewGroup
-         directly, which is exactly what we need for React Native TouchableOpacity.
-      2. text / textContains — returns the inner non-clickable TextView as fallback.
-    Raises the last exception if none match.
+    Always resolves to the English label first (picker only exposes English
+    content-desc / text). Falls back to textContains with all candidates.
     """
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
 
-    last_exc: Exception = RuntimeError(f"None of {texts!r} found")
+    en_label = _resolve_english(texts)
+    logging.info("[SYMPTOM] _find_symptom_element: texts=%r  english_label=%r", texts, en_label)
 
-    # Pass 1: content-desc match — single WebDriverWait that polls ALL labels
-    # each cycle. Works for both English and Korean apps: whichever label
-    # matches the picker's content-desc is found within the full timeout,
-    # with no per-language penalty.
-    def _any_desc(driver):
-        for t in texts:
-            try:
-                el = driver.find_element(
-                    By.ANDROID_UIAUTOMATOR,
-                    f'new UiSelector().descriptionContains("{t}")',
-                )
-                return el
-            except Exception:
-                pass
-        return False
+    last_exc: Exception = RuntimeError(f"None of {texts!r} found in picker")
 
-    try:
-        return WebDriverWait(d.drv, timeout).until(_any_desc)
-    except Exception as exc:
-        last_exc = exc
-
-    # Pass 2: textContains fallback (finds inner TextView)
-    per = max(timeout // max(len(texts), 1), 1)
-    for t in texts:
+    # Pass 1: English content-desc — single label, full timeout
+    # Picker always exposes English content-desc; no Korean attempt needed.
+    if en_label:
         try:
-            return d.find(t, timeout=per, contains=True)
+            el = WebDriverWait(d.drv, timeout).until(
+                EC.presence_of_element_located((
+                    By.ANDROID_UIAUTOMATOR,
+                    f'new UiSelector().descriptionContains("{en_label}")',
+                ))
+            )
+            logging.info("[SYMPTOM] found via descriptionContains(%r)", en_label)
+            return el
+        except Exception as exc:
+            logging.info("[SYMPTOM] descriptionContains(%r) failed: %s", en_label, exc)
+            last_exc = exc
+
+    # Pass 2: textContains fallback — tries all candidates (inner TextView)
+    candidates = ([en_label] if en_label else []) + [t for t in texts if t != en_label]
+    per = max(timeout // max(len(candidates), 1), 1)
+    for t in candidates:
+        try:
+            el = d.find(t, timeout=per, contains=True)
+            logging.info("[SYMPTOM] found via textContains(%r)", t)
+            return el
         except Exception as exc:
             last_exc = exc
 
@@ -337,11 +365,21 @@ def _tap_symptom_item(
     Before each scroll retry, validate that the picker is still open (if picker_title given).
     On final failure: screenshot + page source dump before raising.
     """
-    import logging
     from selenium.webdriver.common.by import By
 
-    texts = [symptom] if isinstance(symptom, str) else symptom
-    label = texts[0][:12]
+    # Parse incoming value — handles both list and comma-joined string
+    # e.g. "두근거림,Palpitations" → ["두근거림", "Palpitations"]
+    if isinstance(symptom, str):
+        texts = [t.strip() for t in symptom.split(",") if t.strip()]
+    else:
+        texts = list(symptom)
+
+    en_label = _resolve_english(texts)
+    logging.info(
+        "[SYMPTOM] _tap_symptom_item: original=%r  parsed=%r  english_label=%r",
+        symptom, texts, en_label,
+    )
+    label = (en_label or texts[0])[:12]
 
     d.screenshot(f"symptom_pre_{label}")
     last_exc: Exception = RuntimeError(f"Could not select symptom: {texts!r}")
