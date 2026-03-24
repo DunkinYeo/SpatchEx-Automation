@@ -314,26 +314,39 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 10)
 
     last_exc: Exception = RuntimeError(f"None of {texts!r} found in picker")
 
-    # Pass 1: English content-desc — single label, full timeout
-    # Picker always exposes English content-desc; no Korean attempt needed.
+    # Pass 1: content-desc — single WebDriverWait polls English first, then Korean.
+    # English picker → English matches on first cycle (Korean fails instantly).
+    # Korean picker  → Korean matches on first cycle (English fails instantly).
+    # Both cases resolve within the first poll without wasting per-label timeout.
+    search_order = []
     if en_label:
-        try:
-            el = WebDriverWait(d.drv, timeout).until(
-                EC.presence_of_element_located((
-                    By.ANDROID_UIAUTOMATOR,
-                    f'new UiSelector().descriptionContains("{en_label}")',
-                ))
-            )
-            logging.info("[SYMPTOM] found via descriptionContains(%r)", en_label)
-            return el
-        except Exception as exc:
-            logging.info("[SYMPTOM] descriptionContains(%r) failed: %s", en_label, exc)
-            last_exc = exc
+        search_order.append(en_label)
+    for t in texts:
+        if t != en_label:
+            search_order.append(t)
 
-    # Pass 2: textContains fallback — tries all candidates (inner TextView)
-    candidates = ([en_label] if en_label else []) + [t for t in texts if t != en_label]
-    per = max(timeout // max(len(candidates), 1), 1)
-    for t in candidates:
+    def _any_desc(driver):
+        for t in search_order:
+            try:
+                return driver.find_element(
+                    By.ANDROID_UIAUTOMATOR,
+                    f'new UiSelector().descriptionContains("{t}")',
+                )
+            except Exception:
+                pass
+        return False
+
+    try:
+        el = WebDriverWait(d.drv, timeout).until(_any_desc)
+        logging.info("[SYMPTOM] found via descriptionContains, search_order=%r", search_order)
+        return el
+    except Exception as exc:
+        logging.info("[SYMPTOM] descriptionContains all failed: %s", exc)
+        last_exc = exc
+
+    # Pass 2: textContains fallback (finds inner TextView)
+    per = max(timeout // max(len(search_order), 1), 1)
+    for t in search_order:
         try:
             el = d.find(t, timeout=per, contains=True)
             logging.info("[SYMPTOM] found via textContains(%r)", t)
