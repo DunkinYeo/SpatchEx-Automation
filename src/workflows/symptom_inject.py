@@ -280,26 +280,23 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 5):
     Raises the last exception if none match.
     """
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
 
-    per = max(timeout // len(texts), 2)
     last_exc: Exception = RuntimeError(f"None of {texts!r} found")
 
-    # Pass 1: content-desc match (finds the clickable outer ViewGroup directly)
+    # Pass 1: instant content-desc match — no WebDriverWait so each non-matching
+    # label (e.g. Korean) fails immediately without blocking for seconds.
+    # The picker exposes English content-desc only, so English hits on first try.
     for t in texts:
         try:
-            locator = (
+            return d.drv.find_element(
                 By.ANDROID_UIAUTOMATOR,
                 f'new UiSelector().descriptionContains("{t}")',
-            )
-            return WebDriverWait(d.drv, per).until(
-                EC.presence_of_element_located(locator)
             )
         except Exception as exc:
             last_exc = exc
 
-    # Pass 2: text match fallback (finds inner TextView)
+    # Pass 2: textContains fallback with timeout (finds inner TextView)
+    per = max(timeout // max(len(texts), 1), 1)
     for t in texts:
         try:
             return d.find(t, timeout=per, contains=True)
