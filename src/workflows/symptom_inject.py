@@ -326,6 +326,17 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 10)
             search_order.append(t)
 
     def _any_desc(driver):
+        # Exact description match first — avoids matching container elements
+        # whose content-desc is a concatenation of all child labels.
+        for t in search_order:
+            try:
+                return driver.find_element(
+                    By.ANDROID_UIAUTOMATOR,
+                    f'new UiSelector().description("{t}")',
+                )
+            except Exception:
+                pass
+        # Fall back to contains match if exact fails
         for t in search_order:
             try:
                 return driver.find_element(
@@ -338,10 +349,10 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 10)
 
     try:
         el = WebDriverWait(d.drv, timeout).until(_any_desc)
-        logging.info("[SYMPTOM] found via descriptionContains, search_order=%r", search_order)
+        logging.info("[SYMPTOM] found via description, search_order=%r", search_order)
         return el
     except Exception as exc:
-        logging.info("[SYMPTOM] descriptionContains all failed: %s", exc)
+        logging.info("[SYMPTOM] description all failed: %s", exc)
         last_exc = exc
 
     # Pass 2: textContains fallback (finds inner TextView)
