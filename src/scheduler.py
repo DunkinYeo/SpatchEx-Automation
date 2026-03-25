@@ -291,13 +291,25 @@ def _run_with_health_check(job_callable, driver, at_hour, payload, reporter, coo
     return result
 
 
+def _is_instrumentation_crash(exc: Exception) -> bool:
+    """Return True when the error is a dead UiAutomator2 instrumentation process."""
+    msg = str(exc)
+    return (
+        "instrumentation process is not running" in msg
+        or "cannot be proxied to UiAutomator2 server" in msg
+    )
+
+
 def _attempt_recovery(driver, reporter, cooldown_seconds=30):
     """
     3-step escalating recovery with cooldown + UI re-check after each step.
 
     Step 1: back key + short wait
-    Step 2: start_activity (force relaunch)
+    Step 2: activate_app (force relaunch)
     Step 3: terminate + activate (kill/relaunch)
+
+    Special case: if UiAutomator2 instrumentation is dead (specific error),
+    skip app-level steps and immediately recreate the Appium session.
 
     After each step: wait cooldown_seconds, then re-check UI health.
     Returns as soon as a step results in a healthy UI.
@@ -308,12 +320,32 @@ def _attempt_recovery(driver, reporter, cooldown_seconds=30):
             driver.recover_session(step=step)
         except Exception as e:
             reporter.log_event("recovery_step_error", {"step": step, "error": str(e)})
-            # UiAutomator2 may be completely dead (WiFi ADB dropped).
-            # Restore the Appium session before trying the next step.
-            try:
-                driver.ensure_session()
-            except Exception:
-                pass
+
+            if _is_instrumentation_crash(e):
+                # UiAutomator2 instrumentation process is dead.
+                # App-level steps (back key, activate, etc.) cannot work because
+                # every Appium command is proxied through the dead instrumentation.
+                # Skip remaining steps and recreate the session immediately.
+                reporter.log_event("instrumentation_crash_detected", {"step": step})
+                try:
+                    reporter.log_event("session_recreate_for_instrumentation_crash", {})
+                    driver.reconnect()
+                    driver.wait_idle(2.0)
+                    driver.assert_ui_health()
+                    reporter.log_event("post_recreate_ui_health_result", {"healthy": True})
+                    return  # recovered
+                except Exception as health_exc:
+                    reporter.log_event("post_recreate_ui_health_result", {
+                        "healthy": False, "error": str(health_exc)
+                    })
+            else:
+                # Non-instrumentation failure — restore session as safety net
+                # before proceeding to the next recovery step.
+                try:
+                    driver.ensure_session()
+                except Exception:
+                    pass
+
             continue
 
         # Wait for app to stabilize before checking
