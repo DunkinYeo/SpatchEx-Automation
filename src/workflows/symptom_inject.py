@@ -436,13 +436,23 @@ def _tap_symptom_item(
                 continue
             break
 
-        logging.info("[SYMPTOM] attempt=%d element found: %r tag=%s bounds=%s clickable=%s",
-                     attempt, label,
-                     el.tag_name,
-                     el.get_attribute("bounds"),
-                     el.get_attribute("clickable"))
-
-        el_clickable = el.get_attribute("clickable") == "true"
+        # Element may go stale immediately after find if React Native re-renders.
+        # Re-find once on StaleElementReferenceException before proceeding.
+        try:
+            el_clickable = el.get_attribute("clickable") == "true"
+            logging.info("[SYMPTOM] attempt=%d element found: %r tag=%s bounds=%s clickable=%s",
+                         attempt, label,
+                         el.tag_name,
+                         el.get_attribute("bounds"),
+                         el_clickable)
+        except Exception as stale_exc:
+            logging.info("[SYMPTOM] element went stale after find, re-finding: %s", stale_exc)
+            try:
+                el = _find_symptom_element(d, texts, timeout=5)
+                el_clickable = el.get_attribute("clickable") == "true"
+            except Exception as refind_exc:
+                last_exc = refind_exc
+                continue
 
         # --- strategy: coord_tap on element when it is not itself clickable ---
         # Korean picker structure: content-desc is on inner non-clickable TextView.
