@@ -297,7 +297,8 @@ SET "_SLEEP_PS1=%TEMP%\spatch_sleep_%_TS%.ps1"
 SET "_SLEEP_PID_F=%TEMP%\spatch_sleep_%_TS%.pid"
 echo $PID ^| Set-Content '%_SLEEP_PID_F%' > "%_SLEEP_PS1%"
 echo try { Add-Type -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);' -Name W32 -Namespace NW } catch {} >> "%_SLEEP_PS1%"
-echo while ($true) { try { [NW.W32]::SetThreadExecutionState(0x80000003) ^| Out-Null } catch { $p = [System.Windows.Forms.Cursor]::Position; [System.Windows.Forms.Cursor]::Position = $p }; Start-Sleep 30 } >> "%_SLEEP_PS1%"
+echo try { Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e);' -Name U32 -Namespace NU } catch {} >> "%_SLEEP_PS1%"
+echo while ($true) { $ok=$false; try { [NW.W32]::SetThreadExecutionState(0x80000003) ^| Out-Null; $ok=$true } catch {}; if (-not $ok) { try { [NU.U32]::mouse_event(1,0,0,0,0) } catch {} }; Start-Sleep 30 } >> "%_SLEEP_PS1%"
 start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%_SLEEP_PS1%"
 ping 127.0.0.1 -n 2 >nul 2>&1
 echo   Sleep prevention enabled during test run.
