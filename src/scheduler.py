@@ -308,6 +308,12 @@ def _attempt_recovery(driver, reporter, cooldown_seconds=30):
             driver.recover_session(step=step)
         except Exception as e:
             reporter.log_event("recovery_step_error", {"step": step, "error": str(e)})
+            # UiAutomator2 may be completely dead (WiFi ADB dropped).
+            # Restore the Appium session before trying the next step.
+            try:
+                driver.ensure_session()
+            except Exception:
+                pass
             continue
 
         # Wait for app to stabilize before checking

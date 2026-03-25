@@ -406,10 +406,10 @@ class AndroidDriver:
                 return True
 
             elif step == 2:
-                # Step 2: Force start the activity (may recreate)
-                self.reporter.log_event("recovery_step_2", {"action": "start_activity"})
-                if pkg and act:
-                    self.drv.start_activity(pkg, act)
+                # Step 2: Force the app to foreground via activate_app
+                self.reporter.log_event("recovery_step_2", {"action": "activate_app"})
+                if pkg:
+                    self.drv.activate_app(pkg)
                     self.wait_idle(1.5)
                     return True
 
