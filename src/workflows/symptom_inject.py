@@ -433,6 +433,30 @@ def _tap_symptom_item(
                      el.get_attribute("bounds"),
                      el.get_attribute("clickable"))
 
+        el_clickable = el.get_attribute("clickable") == "true"
+
+        # --- strategy: coord_tap on element when it is not itself clickable ---
+        # Korean picker structure: content-desc is on inner non-clickable TextView.
+        # ancestor-or-self would find a large container whose center falls between
+        # buttons, closing the picker without selecting the symptom.
+        # Tapping the element's own coordinates hits the exact button location.
+        if not el_clickable:
+            try:
+                loc = el.location
+                sz = el.size
+                cx = loc["x"] + sz["width"] // 2
+                cy = loc["y"] + sz["height"] // 2
+                logging.info("[SYMPTOM] strategy=direct_coord_tap (clickable=false) cx=%d cy=%d", cx, cy)
+                d.drv.tap([(cx, cy)])
+                d.wait_idle(0.5)
+                picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+                logging.info("[SYMPTOM] after direct_coord_tap picker_still_open=%s", picker_still_open)
+                if not picker_title or not picker_still_open:
+                    logging.info("[SYMPTOM] success via direct_coord_tap")
+                    return
+            except Exception as e:
+                logging.info("[SYMPTOM] direct_coord_tap failed: %s", e)
+
         # --- click nearest clickable ancestor (TouchableOpacity) ---
         # React Native renders Text inside View layers; the clickable
         # TouchableOpacity may be 1-3 levels above the text element.
