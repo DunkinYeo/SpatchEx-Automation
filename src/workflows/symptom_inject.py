@@ -232,6 +232,15 @@ def inject_symptom_event(
         d.screenshot(f"symptom_success_{signal}")
         last_step = f"success_{signal}"
 
+        # ── 9b. Navigate back to ECG main tab if on diary screen ─────────
+        # Samsung Korean app goes to diary tab after symptom injection.
+        # Return to ECG tab so the next health check sees "증상 추가".
+        if signal == "success_signal":
+            main_tab = d.sel.get("main_tab_text")
+            if main_tab and d.is_visible_text(main_tab):
+                d.tap_text(main_tab, timeout=5, contains=True)
+                d.wait_idle(1.0)
+
         # ── 10. Screenshot AFTER + logcat ────────────────────────────
         d.screenshot("inject_after")
         logcat_path = d.logcat("inject_logcat")
