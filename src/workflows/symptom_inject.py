@@ -470,15 +470,15 @@ def _tap_symptom_item(
             if picker_still_open:
                 logging.info("[SYMPTOM] success via page_source_coords (multi-select)")
                 return
-            success_signal = d.sel.get("symptom_success_signal_text")
-            main_indicator = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
-            if success_signal and d.is_visible_text(success_signal, timeout=2):
-                logging.info("[SYMPTOM] success via page_source_coords (success_signal)")
+            # Picker closed — wait up to 8s for either diary screen or main screen.
+            # 2s was too short on slow/older devices causing false negatives.
+            try:
+                sig = d.wait_for_symptom_success(timeout=8)
+                logging.info("[SYMPTOM] success via page_source_coords (%s)", sig)
                 return
-            if d.is_visible_text(main_indicator, timeout=2):
-                logging.info("[SYMPTOM] success via page_source_coords (main_screen)")
-                return
-            logging.info("[SYMPTOM] page_source_coords: picker closed without success signal, "
+            except Exception:
+                pass
+            logging.info("[SYMPTOM] page_source_coords: no success indicator within 8s, "
                          "falling through to element-based strategies")
         else:
             logging.info("[SYMPTOM] page_source_coords: target not found in XML, "
