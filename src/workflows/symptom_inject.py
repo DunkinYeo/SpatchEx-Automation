@@ -377,6 +377,35 @@ def _find_symptom_element(d: AndroidDriver, texts: list[str], timeout: int = 10)
     raise last_exc
 
 
+def _find_coords_in_xml(xml_str: str, texts: list[str]) -> "tuple[int, int] | None":
+    """
+    Parse UiAutomator2 page_source XML and return the center (cx, cy) of the first
+    node whose text or content-desc contains any of the given strings.
+    Returns None if not found or parsing fails.
+    """
+    import xml.etree.ElementTree as ET
+    import re
+
+    try:
+        root = ET.fromstring(xml_str)
+    except Exception:
+        return None
+    for node in root.iter():
+        node_text = node.get("text", "")
+        node_desc = node.get("content-desc", "")
+        for t in texts:
+            if not t:
+                continue
+            if t == node_text or t in node_text or t == node_desc or t in node_desc:
+                bounds = node.get("bounds", "")
+                m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds)
+                if m:
+                    x1, y1, x2, y2 = (int(m.group(i)) for i in range(1, 5))
+                    if x2 > x1 and y2 > y1:
+                        return (x1 + x2) // 2, (y1 + y2) // 2
+    return None
+
+
 def _tap_symptom_item(
     d: AndroidDriver,
     symptom: str | list[str],
@@ -416,6 +445,45 @@ def _tap_symptom_item(
 
     d.screenshot(f"symptom_pre_{label}")
     last_exc: Exception = RuntimeError(f"Could not select symptom: {texts!r}")
+
+    # --- strategy 0: page_source coord tap (Android 10 / slow-device safe) ---
+    # WebDriverWait polling inside the picker can fire accessibility events that
+    # dismiss React Native bottom sheets on older Android (e.g. Android 10).
+    # One page_source dump may also dismiss the picker, but we re-open it and
+    # then tap with stored coordinates — no further find_element calls needed.
+    try:
+        xml = d.drv.page_source
+        coords_0 = _find_coords_in_xml(xml, texts)
+        if coords_0:
+            cx0, cy0 = coords_0
+            logging.info("[SYMPTOM] strategy=page_source_coords cx=%d cy=%d", cx0, cy0)
+            # Re-open picker if page_source dismissed it
+            if picker_title and not d.is_visible_text(picker_title, timeout=2):
+                logging.info("[SYMPTOM] picker dismissed by page_source, re-opening")
+                _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+                d.tap_text(_symptom_add, timeout=8, contains=True)
+                _wait_for_picker(d, picker_title, timeout=8)
+            d.drv.execute_script("mobile: clickGesture", {"x": cx0, "y": cy0})
+            d.wait_idle(1.0)
+            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            if picker_still_open:
+                logging.info("[SYMPTOM] success via page_source_coords (multi-select)")
+                return
+            success_signal = d.sel.get("symptom_success_signal_text")
+            main_indicator = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+            if success_signal and d.is_visible_text(success_signal, timeout=2):
+                logging.info("[SYMPTOM] success via page_source_coords (success_signal)")
+                return
+            if d.is_visible_text(main_indicator, timeout=2):
+                logging.info("[SYMPTOM] success via page_source_coords (main_screen)")
+                return
+            logging.info("[SYMPTOM] page_source_coords: picker closed without success signal, "
+                         "falling through to element-based strategies")
+        else:
+            logging.info("[SYMPTOM] page_source_coords: target not found in XML, "
+                         "falling through")
+    except Exception as e:
+        logging.info("[SYMPTOM] strategy=page_source_coords error: %s", e)
 
     for attempt in range(scroll_tries + 1):
         # --- locate (try all language alternatives) ---
@@ -485,43 +553,45 @@ def _tap_symptom_item(
             logging.info("[SYMPTOM] after click_gesture picker_still_open=%s", picker_still_open)
 
             if picker_still_open:
-                pass  # picker still open → fall through to other strategies below
+                # Picker still open after tap → item was SELECTED (multi-select Korean picker
+                # keeps the sheet open until the confirm button is pressed).
+                # Return success; step 6 in inject_symptom_event will handle the confirm button.
+                logging.info("[SYMPTOM] success via click_gesture (picker open → multi-select)")
+                return
             else:
-                # Picker closed — verify it was a GENUINE selection, not a backdrop tap.
-                # If symptom_success_signal_text is configured (e.g. Korean: "환자일지 등록"),
-                # the app must navigate there on successful injection.
-                # If only the main ECG screen appears (no diary signal), the picker was
-                # likely dismissed by an accidental backdrop tap → continue to next strategy.
+                # Picker closed — check either success signal OR back on main ECG screen.
+                # Korean app: navigates to diary tab ("환자일지 등록" button visible).
+                # English app: stays on main ECG screen ("Add Symptom" button visible).
+                # Only re-open picker if NEITHER is visible (genuine backdrop dismiss).
                 success_signal = d.sel.get("symptom_success_signal_text")
-                if success_signal:
-                    if d.is_visible_text(success_signal, timeout=2):
-                        logging.info("[SYMPTOM] success via click_gesture (success_signal confirmed)")
-                        return
-                    # Picker closed but diary screen not reached → backdrop dismiss
-                    logging.info("[SYMPTOM] click_gesture: picker closed but no success_signal "
-                                 "→ backdrop dismiss suspected; re-opening picker")
-                    try:
-                        _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
-                        d.tap_text(_symptom_add, timeout=8, contains=True)
-                        _wait_for_picker(d, picker_title, timeout=8)
-                        el = _find_symptom_element(d, texts, timeout=8)
-                        # Refresh bounds after re-open
-                        loc = el.location
-                        sz  = el.size
-                        cx  = loc["x"] + sz["width"]  // 2
-                        cy  = loc["y"] + sz["height"] // 2
-                        logging.info("[SYMPTOM] picker re-opened after false dismiss; "
-                                     "continuing to next strategy")
-                    except Exception as reopen_exc:
-                        logging.info("[SYMPTOM] re-open after false dismiss failed: %s", reopen_exc)
-                        last_exc = RuntimeError(
-                            f"click_gesture false dismiss and re-open failed: {reopen_exc}"
-                        )
-                        continue
-                else:
-                    # No success signal configured (English device) — picker closed = success
-                    logging.info("[SYMPTOM] success via click_gesture (no success_signal configured)")
+                main_indicator = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+                if success_signal and d.is_visible_text(success_signal, timeout=2):
+                    logging.info("[SYMPTOM] success via click_gesture (success_signal confirmed)")
                     return
+                if d.is_visible_text(main_indicator, timeout=2):
+                    logging.info("[SYMPTOM] success via click_gesture (back on main screen)")
+                    return
+                # Neither signal found → likely backdrop dismiss
+                logging.info("[SYMPTOM] click_gesture: picker closed but no success indicator "
+                             "→ backdrop dismiss suspected; re-opening picker")
+                try:
+                    _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+                    d.tap_text(_symptom_add, timeout=8, contains=True)
+                    _wait_for_picker(d, picker_title, timeout=8)
+                    el = _find_symptom_element(d, texts, timeout=8)
+                    # Refresh bounds after re-open
+                    loc = el.location
+                    sz  = el.size
+                    cx  = loc["x"] + sz["width"]  // 2
+                    cy  = loc["y"] + sz["height"] // 2
+                    logging.info("[SYMPTOM] picker re-opened after false dismiss; "
+                                 "continuing to next strategy")
+                except Exception as reopen_exc:
+                    logging.info("[SYMPTOM] re-open after false dismiss failed: %s", reopen_exc)
+                    last_exc = RuntimeError(
+                        f"click_gesture false dismiss and re-open failed: {reopen_exc}"
+                    )
+                    continue
 
         # --- strategy 2: click nearest clickable ancestor (TouchableOpacity) ---
         # React Native renders Text inside View layers; the clickable
