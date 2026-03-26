@@ -529,8 +529,18 @@ def _tap_symptom_item(
         # pipeline and properly synthesises a touch press+release.
         # Korean picker: content-desc is on inner non-clickable TextView whose
         # bounds are inside the individual button — tapping those coords is correct.
-        loc = el.location
-        sz  = el.size
+        try:
+            loc = el.location
+            sz  = el.size
+        except Exception as stale_loc_exc:
+            logging.info("[SYMPTOM] stale at el.location, re-finding: %s", stale_loc_exc)
+            try:
+                el = _find_symptom_element(d, texts, timeout=5)
+                loc = el.location
+                sz  = el.size
+            except Exception as refind_loc_exc:
+                last_exc = refind_loc_exc
+                continue
         cx  = loc["x"] + sz["width"]  // 2
         cy  = loc["y"] + sz["height"] // 2
         logging.info("[SYMPTOM] strategy=click_gesture (clickable=%s) cx=%d cy=%d",
