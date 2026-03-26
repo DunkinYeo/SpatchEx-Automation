@@ -179,13 +179,14 @@ def inject_symptom_event(
         # ── 3. Open symptom picker ────────────────────────────────────
         symptom_add = d.sel.get("symptom_add_text", "Add Symptom")
         d.tap_text(symptom_add, timeout=15, contains=True)
+        d.wait_idle(1.0)  # brief settle before checking picker (slow devices)
 
         # Wait for the picker title to confirm the UI is ready
         picker_title = d.sel.get(
             "symptom_picker_title",
             ["Check your symptoms", "증상을 선택해주세요."],
         )
-        _wait_for_picker(d, picker_title, timeout=10)
+        _wait_for_picker(d, picker_title, timeout=20)
         d.screenshot("symptom_picker_open")
         # NOTE: do NOT call _dump_page_source here — page_source triggers
         # UiAutomator2 accessibility events that dismiss the React Native
