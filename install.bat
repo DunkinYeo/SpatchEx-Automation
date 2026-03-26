@@ -8,7 +8,6 @@ SET "PYTHON_EXE=python"
 REM Pre-load well-known tool paths so freshly installed tools are found
 SET "PATH=%ProgramFiles%\nodejs;%APPDATA%\npm;%PATH%"
 
-echo DEBUG: LOG=%LOG%
 echo SpatchEx install started > "%LOG%"
 
 echo.
@@ -20,7 +19,6 @@ echo.
 REM ============================================================
 REM [1/6] Python
 REM ============================================================
-echo DEBUG: entering step1
 echo [1/6] Python...
 python --version >nul 2>&1
 IF NOT ERRORLEVEL 1 (
@@ -106,7 +104,6 @@ REM ============================================================
 REM [2/6] Node.js / npm
 REM ============================================================
 :step2
-echo DEBUG: entering step2
 echo.
 echo [2/6] Node.js / npm...
 node --version >nul 2>&1
@@ -172,7 +169,6 @@ REM ============================================================
 REM [3/6] ADB (Android platform-tools)
 REM ============================================================
 :step3
-echo DEBUG: entering step3
 echo.
 echo [3/6] ADB...
 
@@ -233,7 +229,6 @@ REM ============================================================
 REM [4/6] Appium
 REM ============================================================
 :step4
-echo DEBUG: entering step4
 echo.
 echo [4/6] Appium...
 echo [4/6] Appium >> "%LOG%"
@@ -287,7 +282,6 @@ REM ============================================================
 REM [5/6] UiAutomator2 driver
 REM ============================================================
 :step5
-echo DEBUG: entering step5
 echo.
 echo [5/6] UiAutomator2 driver...
 echo [5/6] UiAutomator2 >> "%LOG%"
@@ -323,8 +317,6 @@ REM ============================================================
 REM [6/6] Python packages
 REM ============================================================
 :step6
-echo DEBUG: entering step6
-echo DEBUG: PYTHON_EXE=%PYTHON_EXE%
 echo.
 echo [6/6] Python packages...
 echo [6/6] Python packages >> "%LOG%"
@@ -350,7 +342,6 @@ IF NOT EXIST ".venv\Scripts\activate.bat" (
     GOTO :summary
 )
 
-echo DEBUG: using venv python for package install
 echo   Upgrading pip inside venv...
 .venv\Scripts\python.exe -m pip install --upgrade pip
 IF ERRORLEVEL 1 (

@@ -57,8 +57,23 @@ class AndroidDriver:
         opts.device_name = self.cfg.get("device_name", "Android")
         opts.no_reset = bool(self.cfg.get("no_reset", True))
         opts.new_command_timeout = int(self.cfg.get("new_command_timeout", 3600))
-        if self.cfg.get("udid"):
-            opts.udid = self.cfg["udid"]
+        udid = self.cfg.get("udid", "")
+        if not udid:
+            # No UDID in config — try adb_wifi_device.json written by run.command/run.bat
+            import json, os
+            cache = "automation/runtime/adb_wifi_device.json"
+            if os.path.exists(cache):
+                try:
+                    with open(cache) as _f:
+                        _d = json.load(_f)
+                    _ip = _d.get("wifi_ip", "")
+                    _port = _d.get("tcp_port", 5555)
+                    if _ip:
+                        udid = f"{_ip}:{_port}"
+                except Exception:
+                    pass
+        if udid:
+            opts.udid = udid
         if self.cfg.get("app_package"):
             opts.app_package = self.cfg["app_package"]
         if self.cfg.get("app_activity"):
@@ -436,7 +451,9 @@ class AndroidDriver:
                 "recovery_failed",
                 {"step": step, "error": str(e)},
             )
-            return False
+            # Re-raise so _attempt_recovery in scheduler.py can detect
+            # UiAutomator2 instrumentation crashes and call reconnect().
+            raise
 
     def wait_for_symptom_success(self, timeout: int = 10) -> str:
         """

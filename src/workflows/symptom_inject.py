@@ -454,29 +454,76 @@ def _tap_symptom_item(
                 last_exc = refind_exc
                 continue
 
-        # --- strategy: coord_tap on element when it is not itself clickable ---
-        # Korean picker structure: content-desc is on inner non-clickable TextView.
-        # ancestor-or-self would find a large container whose center falls between
-        # buttons, closing the picker without selecting the symptom.
-        # Tapping the element's own coordinates hits the exact button location.
-        if not el_clickable:
+        # --- strategy 1: mobile:clickGesture on element coordinates ---
+        # Use Android's W3C gesture API for React Native pickers.
+        # drv.tap() generates an instantaneous (0ms) POINTER_DOWN/UP which React
+        # Native may ignore; mobile:clickGesture goes through the native input
+        # pipeline and properly synthesises a touch press+release.
+        # Korean picker: content-desc is on inner non-clickable TextView whose
+        # bounds are inside the individual button — tapping those coords is correct.
+        loc = el.location
+        sz  = el.size
+        cx  = loc["x"] + sz["width"]  // 2
+        cy  = loc["y"] + sz["height"] // 2
+        logging.info("[SYMPTOM] strategy=click_gesture (clickable=%s) cx=%d cy=%d",
+                     el_clickable, cx, cy)
+        _tap_succeeded = False
+        try:
+            d.drv.execute_script("mobile: clickGesture", {"x": cx, "y": cy})
+            _tap_succeeded = True
+        except Exception as e:
+            logging.info("[SYMPTOM] mobile:clickGesture failed, falling back to drv.tap: %s", e)
             try:
-                loc = el.location
-                sz = el.size
-                cx = loc["x"] + sz["width"] // 2
-                cy = loc["y"] + sz["height"] // 2
-                logging.info("[SYMPTOM] strategy=direct_coord_tap (clickable=false) cx=%d cy=%d", cx, cy)
-                d.drv.tap([(cx, cy)])
-                d.wait_idle(0.5)
-                picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
-                logging.info("[SYMPTOM] after direct_coord_tap picker_still_open=%s", picker_still_open)
-                if not picker_title or not picker_still_open:
-                    logging.info("[SYMPTOM] success via direct_coord_tap")
-                    return
-            except Exception as e:
-                logging.info("[SYMPTOM] direct_coord_tap failed: %s", e)
+                d.drv.tap([(cx, cy)], 120)  # 120 ms duration
+                _tap_succeeded = True
+            except Exception as e2:
+                logging.info("[SYMPTOM] drv.tap also failed: %s", e2)
 
-        # --- click nearest clickable ancestor (TouchableOpacity) ---
+        if _tap_succeeded:
+            d.wait_idle(1.0)
+            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            logging.info("[SYMPTOM] after click_gesture picker_still_open=%s", picker_still_open)
+
+            if picker_still_open:
+                pass  # picker still open → fall through to other strategies below
+            else:
+                # Picker closed — verify it was a GENUINE selection, not a backdrop tap.
+                # If symptom_success_signal_text is configured (e.g. Korean: "환자일지 등록"),
+                # the app must navigate there on successful injection.
+                # If only the main ECG screen appears (no diary signal), the picker was
+                # likely dismissed by an accidental backdrop tap → continue to next strategy.
+                success_signal = d.sel.get("symptom_success_signal_text")
+                if success_signal:
+                    if d.is_visible_text(success_signal, timeout=2):
+                        logging.info("[SYMPTOM] success via click_gesture (success_signal confirmed)")
+                        return
+                    # Picker closed but diary screen not reached → backdrop dismiss
+                    logging.info("[SYMPTOM] click_gesture: picker closed but no success_signal "
+                                 "→ backdrop dismiss suspected; re-opening picker")
+                    try:
+                        _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+                        d.tap_text(_symptom_add, timeout=8, contains=True)
+                        _wait_for_picker(d, picker_title, timeout=8)
+                        el = _find_symptom_element(d, texts, timeout=8)
+                        # Refresh bounds after re-open
+                        loc = el.location
+                        sz  = el.size
+                        cx  = loc["x"] + sz["width"]  // 2
+                        cy  = loc["y"] + sz["height"] // 2
+                        logging.info("[SYMPTOM] picker re-opened after false dismiss; "
+                                     "continuing to next strategy")
+                    except Exception as reopen_exc:
+                        logging.info("[SYMPTOM] re-open after false dismiss failed: %s", reopen_exc)
+                        last_exc = RuntimeError(
+                            f"click_gesture false dismiss and re-open failed: {reopen_exc}"
+                        )
+                        continue
+                else:
+                    # No success signal configured (English device) — picker closed = success
+                    logging.info("[SYMPTOM] success via click_gesture (no success_signal configured)")
+                    return
+
+        # --- strategy 2: click nearest clickable ancestor (TouchableOpacity) ---
         # React Native renders Text inside View layers; the clickable
         # TouchableOpacity may be 1-3 levels above the text element.
         # XPATH ancestor-or-self finds the first element with clickable=true,
@@ -485,8 +532,9 @@ def _tap_symptom_item(
             clickable = el.find_element(
                 By.XPATH, "ancestor-or-self::*[@clickable='true'][1]"
             )
+            anc_bounds = clickable.get_attribute("bounds")
             logging.info("[SYMPTOM] strategy=ancestor_click tag=%s bounds=%s",
-                         clickable.tag_name, clickable.get_attribute("bounds"))
+                         clickable.tag_name, anc_bounds)
             clickable.click()
             d.wait_idle(0.5)
             picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
@@ -497,28 +545,11 @@ def _tap_symptom_item(
         except Exception as e:
             logging.info("[SYMPTOM] ancestor_click failed: %s", e)
 
-        # --- fallback: tap via coordinates ---
+        # --- strategy 3: element.click() (W3C pointer action to element centre) ---
         try:
-            loc = el.location
-            sz = el.size
-            cx = loc["x"] + sz["width"] // 2
-            cy = loc["y"] + sz["height"] // 2
-            logging.info("[SYMPTOM] strategy=coord_tap cx=%d cy=%d", cx, cy)
-            d.drv.tap([(cx, cy)])
-            d.wait_idle(0.5)
-            picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
-            logging.info("[SYMPTOM] after coord_tap picker_still_open=%s", picker_still_open)
-            if not picker_title or not picker_still_open:
-                logging.info("[SYMPTOM] success via coord_tap")
-                return
-        except Exception as e:
-            logging.info("[SYMPTOM] coord_tap failed: %s", e)
-
-        # --- fallback: element.click() ---
-        try:
-            logging.info("[SYMPTOM] strategy=element_click")
+            logging.info("[SYMPTOM] strategy=element_click cx=%d cy=%d", cx, cy)
             el.click()
-            d.wait_idle(0.3)
+            d.wait_idle(0.5)
             picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
             logging.info("[SYMPTOM] after element_click picker_still_open=%s", picker_still_open)
             if not picker_title or not picker_still_open:
