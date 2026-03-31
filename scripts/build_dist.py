@@ -170,7 +170,6 @@ def build_windows(out_dir: Path):
 
         _add_dir(zf, ROOT / "src",        f"{P}/src")
         _add_dir(zf, ROOT / "web",        f"{P}/web")
-        _add_dir(zf, ROOT / "automation", f"{P}/automation")
         _add_dir(zf, ROOT / "scripts",    f"{P}/scripts", MAC_SUBS)
 
         _add_config(zf, f"{P}/config")
@@ -201,7 +200,6 @@ def build_mac(out_dir: Path):
 
         _add_dir(zf, ROOT / "src",        f"{P}/src")
         _add_dir(zf, ROOT / "web",        f"{P}/web")
-        _add_dir(zf, ROOT / "automation", f"{P}/automation")
         _add_dir(zf, ROOT / "scripts",    f"{P}/scripts", MAC_SUBS)
 
         _add_config(zf, f"{P}/config")

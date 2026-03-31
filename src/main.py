@@ -18,7 +18,7 @@ from src.slack import slack_notify
 from src.timeline import log_event
 from src.workflows.measurement_start import ensure_measurement_started
 from src.workflows.symptom_inject import inject_symptom_event
-from automation.artifact_manager import save_failure_artifacts
+from src.artifact_manager import save_failure_artifacts
 
 
 def ensure_uiautomator2(reporter: RunReporter) -> None:
