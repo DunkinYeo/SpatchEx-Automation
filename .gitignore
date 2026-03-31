@@ -22,3 +22,6 @@ artifacts/**
 !artifacts/.gitkeep
 !artifacts/logs/
 !artifacts/logs/.gitkeep
+
+# Build output
+dist/
