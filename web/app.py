@@ -42,6 +42,9 @@ SPATCH_EX_SELECTORS = {
     "duration_24h_text":    ["24 Hours", "24 h", "24 시간"],
     "duration_48h_text":    ["48 Hours", "48 h", "48 시간"],
     "duration_72h_text":    ["72 Hours", "72 h", "72 시간"],
+    "duration_144h_text":   ["144 Hours", "144 h", "144 시간"],
+    "duration_168h_text":   ["168 Hours", "168 h", "168 시간"],
+    "duration_200h_text":   ["200 Hours", "200 h", "200 시간"],
     # ── Popups / dialogs (English + Korean) ────────────────────────────
     # Used to dismiss any blocking dialog before injection and after
     # background resume. All common confirm/dismiss button labels covered.

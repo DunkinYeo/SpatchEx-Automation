@@ -213,17 +213,28 @@ def _handle_offline_consent(d: AndroidDriver):
 
 def _select_duration(d: AndroidDriver, duration_hours: int = 24) -> None:
     """
-    Select the duration option matching duration_hours (24, 48, or 72).
+    Select the duration option matching duration_hours (24, 48, 72, 144, 168, or 200).
     Tries the requested duration first, then falls back in ascending order.
     """
     _HOURS_TO_KEY = {
-        24: "duration_24h_text",
-        48: "duration_48h_text",
-        72: "duration_72h_text",
+        24:  "duration_24h_text",
+        48:  "duration_48h_text",
+        72:  "duration_72h_text",
+        144: "duration_144h_text",
+        168: "duration_168h_text",
+        200: "duration_200h_text",
     }
+    _ALL_KEYS = (
+        "duration_24h_text",
+        "duration_48h_text",
+        "duration_72h_text",
+        "duration_144h_text",
+        "duration_168h_text",
+        "duration_200h_text",
+    )
     preferred_key = _HOURS_TO_KEY.get(duration_hours)
     order = [preferred_key] if preferred_key else []
-    for key in ("duration_24h_text", "duration_48h_text", "duration_72h_text"):
+    for key in _ALL_KEYS:
         if key not in order:
             order.append(key)
     for key in order:
