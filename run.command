@@ -338,13 +338,15 @@ echo ""
 CAFF_PID=""
 echo "  Sleep prevention enabled during test run."
 
-# Wrap Python inside caffeinate so assertions are held for the
-# entire web server lifetime (most reliable: caffeinate exits with Python).
+# Run caffeinate as a background daemon (not wrapping Python).
+# Wrapping only works when the process is in foreground; daemon mode
+# (-i = prevent idle sleep, -s = prevent sleep on AC) is more reliable
+# for long-duration runs (144h+) where the Mac may be unattended overnight.
 if command -v caffeinate >/dev/null 2>&1; then
-    caffeinate -dims $PYTHON web/app.py
-else
-    $PYTHON web/app.py
+    caffeinate -is &
+    CAFF_PID=$!
 fi
+$PYTHON web/app.py
 
 # ── Server exited ─────────────────────────────────────────────
 kill "$HEALTH_PID" 2>/dev/null || true

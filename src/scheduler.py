@@ -101,7 +101,7 @@ class LongRunScheduler:
             },
         )
 
-        sched = BlockingScheduler()
+        sched = BlockingScheduler(job_defaults={"misfire_grace_time": 3600})
         cooldown = int(self.recovery_cfg.get("cooldown_seconds_between_steps", 30))
 
         for item in self.plan:
@@ -144,7 +144,7 @@ class LongRunScheduler:
     # ------------------------------------------------------------------
 
     def _run_interval(self, job_callable, driver, start, end):
-        sched = BackgroundScheduler()
+        sched = BackgroundScheduler(job_defaults={"misfire_grace_time": 3600})
         counter = [0]
         cooldown = int(self.recovery_cfg.get("cooldown_seconds_between_steps", 30))
 
