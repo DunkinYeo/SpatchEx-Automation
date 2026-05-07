@@ -564,4 +564,4 @@ if __name__ == "__main__":
     threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}")).start()
     print(f"\n  SpatchEx Test UI (local)   -> http://127.0.0.1:{PORT}")
     print(f"  Share on local network     -> http://{local_ip}:{PORT}\n")
-    app.run(host="0.0.0.0", port=PORT, debug=False, threaded=True)
+    app.run(host="::", port=PORT, debug=False, threaded=True)
