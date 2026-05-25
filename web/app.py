@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 import yaml
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, jsonify, render_template, request, send_from_directory, Response
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -279,10 +279,17 @@ def api_status():
         events = read_events(out_dir)
         exit_code = proc.poll() if proc else None
 
+        run_start_ev = next((e for e in events if e["event"] == "run_start"), None)
+        tail = events[-50:]
+        if run_start_ev and (not tail or tail[0].get("event") != "run_start"):
+            combined = [run_start_ev] + [e for e in tail if e["event"] != "run_start"]
+        else:
+            combined = tail
+
         return jsonify({
             "running": running,
             "exit_code": exit_code,
-            "events": events[-50:],
+            "events": combined,
         })
 
 
@@ -550,6 +557,108 @@ def failure_screenshot(name):
     if not path.exists():
         return "Not found", 404
     return send_from_directory(str(screenshots_dir), name)
+
+
+# ── Report (HTML download) ────────────────────────────────────────────────────
+
+def _build_report_html(events: list[dict]) -> str:
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    device = start_ts_str = ""
+    duration_h = interval_h = None
+    injections: list = []
+    bt_tests: list = []
+    ap_tests: list = []
+
+    for e in events:
+        ev   = e.get("event", "")
+        data = e.get("data", {})
+        ts   = e.get("ts", "")
+        if ev == "run_start":
+            start_ts_str = ts
+            duration_h   = data.get("duration_hours")
+            interval_h   = data.get("interval_hours")
+        elif ev == "device_info":
+            device = f"{data.get('model','')} Android {data.get('android_version','')} ({data.get('udid','')})"
+        elif ev in ("inject_symptom_done",):
+            injections.append({"ts": ts, "elapsed": data.get("elapsed_sec")})
+        elif ev == "bt_disconnect_done":
+            bt_tests.append({"ts": ts, "minutes": data.get("minutes"), "ok": True})
+        elif ev == "bt_disconnect_failed":
+            bt_tests.append({"ts": ts, "minutes": data.get("minutes"), "ok": False})
+        elif ev == "airplane_mode_done":
+            ap_tests.append({"ts": ts, "minutes": data.get("minutes"), "ok": True})
+        elif ev == "airplane_mode_failed":
+            ap_tests.append({"ts": ts, "minutes": data.get("minutes"), "ok": False})
+
+    elapsed_str = "-"
+    if start_ts_str:
+        try:
+            start_dt = datetime.datetime.fromisoformat(start_ts_str)
+            elapsed  = datetime.datetime.now() - start_dt
+            h, rem   = divmod(int(elapsed.total_seconds()), 3600)
+            elapsed_str = f"{h}h {rem // 60}m"
+        except Exception:
+            pass
+
+    def _t(ts): return ts.split("T")[1][:8] if "T" in ts else ts
+
+    def _table(headers, rows, empty="No data yet."):
+        if not rows:
+            return f"<p style='color:#9ca3af;font-style:italic'>{empty}</p>"
+        ths = "".join(f"<th>{h}</th>" for h in headers)
+        trs = "".join(f"<tr>{''.join(f'<td>{c}</td>' for c in row)}</tr>" for row in rows)
+        return f"<table>{ths}{trs}</table>"
+
+    inj_rows = [[_t(i["ts"]), f"{i['elapsed']}s"] for i in injections]
+    bt_rows  = [[_t(t["ts"]), f"{t['minutes']} min",
+                 "<span style='color:#059669'>✓</span>" if t["ok"] else "<span style='color:#dc2626'>✗</span>"]
+                for t in bt_tests]
+    ap_rows  = [[_t(t["ts"]), f"{t['minutes']} min",
+                 "<span style='color:#059669'>✓</span>" if t["ok"] else "<span style='color:#dc2626'>✗</span>"]
+                for t in ap_tests]
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<title>EX Test Report — {now}</title>
+<style>
+  body{{font-family:-apple-system,sans-serif;margin:40px;color:#1a2533;background:#f9fafb;max-width:900px}}
+  h1{{font-size:1.3rem;color:#1e3a5f;margin-bottom:4px}}
+  h2{{font-size:.95rem;color:#2563eb;margin:22px 0 8px;border-bottom:2px solid #e8f0fe;padding-bottom:5px}}
+  .meta{{font-size:.8rem;color:#6b7280;margin-bottom:24px}}
+  table{{width:100%;border-collapse:collapse;margin-bottom:4px;font-size:.82rem}}
+  th{{background:#f3f4f6;padding:6px 10px;text-align:left;color:#374151;font-weight:600}}
+  td{{padding:5px 10px;border-bottom:1px solid #e5e7eb}}
+</style>
+</head>
+<body>
+<h1>S-Patch EX — Test Report</h1>
+<div class="meta">Generated: {now} · Device: {device}<br>
+Elapsed: {elapsed_str} / {duration_h}h · Injection interval: {interval_h}h</div>
+
+<h2>Injections ({len(injections)} total)</h2>
+{_table(["Time", "Duration"], inj_rows)}
+
+<h2>BT Disconnect Tests ({len(bt_tests)} total)</h2>
+{_table(["Time", "Duration", "Result"], bt_rows)}
+
+<h2>Airplane Mode Tests ({len(ap_tests)} total)</h2>
+{_table(["Time", "Duration", "Result"], ap_rows)}
+</body></html>"""
+
+
+@app.route("/api/report")
+def api_report():
+    with _lock:
+        out_dir = _state["out_dir"]
+    events = read_events(out_dir) if out_dir else []
+    html   = _build_report_html(events)
+    ts     = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        html,
+        mimetype="text/html",
+        headers={"Content-Disposition": f"attachment; filename=ex_report_{ts}.html"},
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

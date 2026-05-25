@@ -144,18 +144,26 @@ class LongRunScheduler:
     # ------------------------------------------------------------------
 
     def _run_interval(self, job_callable, driver, start, end):
-        sched = BackgroundScheduler(job_defaults={"misfire_grace_time": 3600})
+        grace = int(self.duration_hours * 3600)
+        sched = BackgroundScheduler(job_defaults={"misfire_grace_time": grace})
         counter = [0]
         cooldown = int(self.recovery_cfg.get("cooldown_seconds_between_steps", 30))
 
         def _schedule_next():
-            counter[0] += 1
-            offset_hours = counter[0] * self.interval_hours
-            jitter = random.uniform(-self.jitter_seconds, self.jitter_seconds) if self.jitter_seconds else 0
-            next_run = start + datetime.timedelta(hours=offset_hours) + datetime.timedelta(seconds=jitter)
-
-            if next_run >= end:
-                return
+            # Skip past slots already in the past (host slept through them)
+            now = datetime.datetime.now()
+            while True:
+                counter[0] += 1
+                offset_hours = counter[0] * self.interval_hours
+                jitter = random.uniform(-self.jitter_seconds, self.jitter_seconds) if self.jitter_seconds else 0
+                next_run = start + datetime.timedelta(hours=offset_hours) + datetime.timedelta(seconds=jitter)
+                if next_run >= end:
+                    return
+                if next_run > now:
+                    break
+                self.reporter.log_event("job_skipped_host_sleep", {
+                    "index": counter[0], "scheduled": next_run.isoformat(),
+                })
 
             self.reporter.log_event(
                 "schedule_add",

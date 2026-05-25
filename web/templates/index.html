@@ -318,7 +318,10 @@
   <!-- ── Right: Log ── -->
   <div>
     <div class="card">
-      <div class="card-title">Progress</div>
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        Progress
+        <button onclick="downloadReport()" style="padding:4px 10px;font-size:.75rem;background:white;color:#2563eb;border:1.5px solid #2563eb;border-radius:6px;cursor:pointer;font-weight:600">⬇ Report</button>
+      </div>
 
       <!-- Progress bar -->
       <div id="progress-section" style="display:none">
@@ -382,6 +385,13 @@ const EVENT_INFO = {
   artifact_logcat_done:        { text: null,                          color: 'gray'   },
   run_complete:                { text: 'Test complete!',              color: 'green'  },
   run_failed:                  { text: null,                          color: 'red'    },
+  bt_disconnect_start:         { text: null,                          color: 'orange' },
+  bt_disconnect_done:          { text: null,                          color: 'green'  },
+  bt_disconnect_failed:        { text: null,                          color: 'red'    },
+  airplane_mode_start:         { text: null,                          color: 'orange' },
+  airplane_mode_done:          { text: null,                          color: 'green'  },
+  airplane_mode_skipped:       { text: 'Airplane mode skipped (WiFi ADB)', color: 'gray' },
+  airplane_mode_failed:        { text: null,                          color: 'red'    },
 };
 
 function fmtEvent(ev) {
@@ -409,6 +419,18 @@ function fmtEvent(ev) {
     return null;
   } else if (ev.event === 'run_failed') {
     text = `Test failed -- ${ev.data?.error || ''}`;
+  } else if (ev.event === 'bt_disconnect_start') {
+    text = `BT disconnect — off for ${ev.data?.minutes ?? '?'} min`;
+  } else if (ev.event === 'bt_disconnect_done') {
+    text = `BT reconnected after ${ev.data?.minutes ?? '?'} min`;
+  } else if (ev.event === 'bt_disconnect_failed') {
+    text = `BT disconnect failed (${ev.data?.phase ?? ''}: ${ev.data?.error ?? ''})`;
+  } else if (ev.event === 'airplane_mode_start') {
+    text = `Airplane mode ON — ${ev.data?.minutes ?? '?'} min`;
+  } else if (ev.event === 'airplane_mode_done') {
+    text = `Airplane mode OFF after ${ev.data?.minutes ?? '?'} min`;
+  } else if (ev.event === 'airplane_mode_failed') {
+    text = `Airplane mode failed (${ev.data?.phase ?? ''}: ${ev.data?.error ?? ''})`;
   }
   return { text: text || ev.event, color: info.color };
 }
@@ -698,6 +720,15 @@ function updateNextInject(events) {
     box.style.display = 'none';
     nextInjectTs = null;
   }
+}
+
+function downloadReport() {
+  const a = document.createElement('a');
+  a.href = '/api/report';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

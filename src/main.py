@@ -4,6 +4,7 @@ import os
 import random
 import subprocess
 import sys
+import threading
 
 # Allow running as `python src/main.py` from project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,10 +15,13 @@ from src.device_manager import DeviceManager
 from src.reporter import RunReporter
 from src.scheduler import LongRunScheduler
 from src.artifacts import ArtifactManager
+from src.keep_awake import KeepAwake
 from src.slack import slack_notify
 from src.timeline import log_event
 from src.workflows.measurement_start import ensure_measurement_started
 from src.workflows.symptom_inject import inject_symptom_event
+from src.workflows.bt_disconnect import run_bt_disconnect
+from src.workflows.airplane_mode import run_airplane_mode
 from src.artifact_manager import save_failure_artifacts
 
 
@@ -221,6 +225,9 @@ def main():
         return
 
     # ── Full long-run mode ───────────────────────────────────────────────────
+    keep_awake = KeepAwake()
+    keep_awake.start()
+
     dm = None
     try:
         if platform != "android":
@@ -251,6 +258,36 @@ def main():
                 symptoms = [pick]
             inject_symptom_event(driver, symptoms=symptoms, other_text=other, activities=acts)
 
+        _stop_aux = threading.Event()
+
+        bt_interval_h = float(run_cfg.get("bt_disconnect_interval_hours", 0))
+        bt_minutes    = float(run_cfg.get("bt_disconnect_minutes", 10))
+        if bt_interval_h > 0:
+            def _bt_loop():
+                _stop_aux.wait(bt_interval_h * 3600)
+                while not _stop_aux.is_set():
+                    try:
+                        run_bt_disconnect(driver, bt_minutes)
+                    except Exception as _e:
+                        log_event(f"[bt_disconnect] error: {_e}")
+                    _stop_aux.wait(bt_interval_h * 3600)
+            threading.Thread(target=_bt_loop, daemon=True).start()
+            log_event(f"BT disconnect loop started (every {bt_interval_h}h, {bt_minutes} min off)")
+
+        ap_interval_h = float(run_cfg.get("airplane_mode_interval_hours", 0))
+        ap_minutes    = float(run_cfg.get("airplane_mode_minutes", 5))
+        if ap_interval_h > 0:
+            def _airplane_loop():
+                _stop_aux.wait(ap_interval_h * 3600)
+                while not _stop_aux.is_set():
+                    try:
+                        run_airplane_mode(driver, ap_minutes)
+                    except Exception as _e:
+                        log_event(f"[airplane_mode] error: {_e}")
+                    _stop_aux.wait(ap_interval_h * 3600)
+            threading.Thread(target=_airplane_loop, daemon=True).start()
+            log_event(f"Airplane mode loop started (every {ap_interval_h}h, {ap_minutes} min on)")
+
         scheduler = LongRunScheduler(
             duration_hours=duration_hours,
             interval_hours=interval_hours,
@@ -263,6 +300,7 @@ def main():
             recovery_cfg=recovery_cfg,
         )
         scheduler.run(job, driver=driver)
+        _stop_aux.set()
 
         reporter.log_event("run_complete", {"status": "ok"})
         log_event("run complete")
@@ -274,6 +312,7 @@ def main():
         raise
 
     finally:
+        keep_awake.stop()
         if dm:
             dm.close()
         try:
