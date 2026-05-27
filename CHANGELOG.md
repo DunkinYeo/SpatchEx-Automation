@@ -1,6 +1,6 @@
 # Changelog — S-Patch Ex Automation
 
-## 2026-05-26
+## [v1.0.0] — 2026-05-28
 
 ### Fixed
 - **Host sleep recovery**: injection chain 끊김 방지, web runner에 KeepAwake 추가
