@@ -5,9 +5,9 @@ Creates two ZIPs:
   SpatchEx-UAT-Windows-YYYYMMDD.zip
   SpatchEx-UAT-Mac-YYYYMMDD.zip
 
-Root structure in each ZIP:
-  Windows: install.bat / run.bat / STOP.bat + README KR/EN + automation/
-  Mac:     install.command / run.command / STOP.command + README KR/EN + automation/
+Root structure in each ZIP (국내 배포용 — 한국어 README만 포함):
+  Windows: install.bat / run.bat / STOP.bat + README(KR) + automation/
+  Mac:     install.command / run.command / STOP.command + README(KR) + automation/
 
 Launcher scripts are patched on-the-fly so internal file references
 (web/app.py, requirements.txt, runtime/) point to automation/ in the ZIP.
@@ -155,10 +155,10 @@ def build_windows(out_dir: Path):
         _add(zf, ROOT / "run.bat",              "run.bat",      WIN_SUBS, crlf=True)
         _add(zf, ROOT / "STOP.bat",             "STOP.bat",     crlf=True)
 
-        # ── READMEs at root ──────────────────────────────────────────
+        # ── READMEs at root (국내 배포용 — 한국어만 포함) ─────────────
         for fname in [
-            "README_WINDOWS_KR.txt", "README_WINDOWS_EN.txt",
-            "README_TEAM_DASHBOARD_KR.txt", "README_TEAM_DASHBOARD_EN.txt",
+            "README_WINDOWS_KR.txt",
+            "README_TEAM_DASHBOARD_KR.txt",
         ]:
             _add(zf, ROOT / fname, fname)
 
@@ -187,10 +187,10 @@ def build_mac(out_dir: Path):
         _add(zf, ROOT / "run.command",      "run.command",      MAC_SUBS)
         _add(zf, ROOT / "STOP.command",     "STOP.command")
 
-        # ── READMEs at root ──────────────────────────────────────────
+        # ── READMEs at root (국내 배포용 — 한국어만 포함) ─────────────
         for fname in [
-            "README_MAC_KR.txt", "README_MAC_EN.txt",
-            "README_TEAM_DASHBOARD_KR.txt", "README_TEAM_DASHBOARD_EN.txt",
+            "README_MAC_KR.txt",
+            "README_TEAM_DASHBOARD_KR.txt",
         ]:
             _add(zf, ROOT / fname, fname)
 
