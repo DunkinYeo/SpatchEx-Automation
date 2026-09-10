@@ -5,9 +5,9 @@ would break a WiFi ADB session and make the device unreachable.
 """
 import logging
 import subprocess
-import time
 
 from src.driver import AndroidDriver
+from src.sleep_utils import sleep_with_heartbeat
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def run_airplane_mode(driver: AndroidDriver, airplane_minutes: float) -> None:
         driver.reporter.log_event("airplane_mode_failed", {"phase": "enable", "error": str(e)})
         return
 
-    time.sleep(airplane_minutes * 60)
+    sleep_with_heartbeat(driver, airplane_minutes * 60, log_prefix="airplane_mode")
 
     try:
         subprocess.run(adb + ["shell", "settings", "put", "global", "airplane_mode_on", "0"],

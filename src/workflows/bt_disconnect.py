@@ -4,9 +4,9 @@ Simulates the S-Patch moving out of Bluetooth range.
 """
 import logging
 import subprocess
-import time
 
 from src.driver import AndroidDriver
+from src.sleep_utils import sleep_with_heartbeat
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def run_bt_disconnect(driver: AndroidDriver, disconnect_minutes: float) -> None:
         driver.reporter.log_event("bt_disconnect_failed", {"phase": "disable", "error": str(e)})
         return
 
-    time.sleep(disconnect_minutes * 60)
+    sleep_with_heartbeat(driver, disconnect_minutes * 60, log_prefix="bt_disconnect")
 
     try:
         subprocess.run(adb + ["shell", "svc", "bluetooth", "enable"],

@@ -1,5 +1,10 @@
 # Changelog — S-Patch Ex Automation
 
+## 2026-09-10
+
+### Fixed
+- `bt_disconnect`/`airplane_mode` 워크플로우가 연결 끊김 구간(최대 수십 시간) 동안 한 번의 blind `time.sleep()`만 하던 것을 수정 — 5분마다 Appium 세션을 점검(`ensure_session()`)하는 `sleep_with_heartbeat` 공용 헬퍼(`src/sleep_utils.py`)로 교체. 호스트 sleep/wake나 세션 끊김을 그 구간이 끝날 때까지 몰랐던 문제, 그리고 장시간 무응답으로 `new_command_timeout`에 걸려 세션이 죽는 문제 방지.
+
 ## [v1.0.0] — 2026-05-28
 
 ### Fixed
