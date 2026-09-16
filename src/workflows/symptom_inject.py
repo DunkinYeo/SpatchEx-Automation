@@ -78,6 +78,16 @@ def inject_symptom_event(
         d.screenshot("inject_before")
         last_step = "before_screenshot"
 
+        # Diary tab's own badge count, captured now as the baseline for
+        # the real success check at step 9 -- confirmed live (2026-09-16)
+        # that this app shows NO distinct success toast/text at all after
+        # registering a symptom (it only silently increments this badge),
+        # so "back on the main screen" was the only signal available and
+        # is true whether the tap actually registered or not. Comparing
+        # this count before/after is genuine proof either way.
+        diary_tab_text = d.sel.get("diary_tab_text", ["Diary", "일지"])
+        _diary_before = d.get_tab_badge_count(diary_tab_text)
+
         # ── 2b. Dismiss any blocking popup/dialog ────────────────────
         confirm = d.sel.get("confirm_text")
         if confirm and d.is_visible_text(confirm):
@@ -227,9 +237,26 @@ def inject_symptom_event(
             last_step = "activities_added"
 
         # ── 9. Wait for success confirmation ─────────────────────────────
-        # Checks (in order): configured success text → main screen indicator.
-        # Only fails if BOTH are absent within timeout.
-        signal = d.wait_for_symptom_success(timeout=10)
+        # Checks (in order): configured success text → main screen indicator
+        # (only when no success text is configured for this app -- see
+        # wait_for_symptom_success's own docstring). Falls back to the
+        # Diary badge count (captured before, at step 2) actually having
+        # increased -- confirmed live (2026-09-16) as the ONLY real proof
+        # available on an app build with no success text/toast at all: a
+        # genuinely-successful tap was otherwise indistinguishable from a
+        # failed one that also happened to land back on the main screen.
+        try:
+            signal = d.wait_for_symptom_success(timeout=10)
+        except Exception as _wait_exc:
+            _diary_after = d.get_tab_badge_count(diary_tab_text)
+            d.reporter.log_event(
+                "symptom_diary_badge_check",
+                {"before": _diary_before, "after": _diary_after},
+            )
+            if _diary_after > _diary_before:
+                signal = "diary_badge_increased"
+            else:
+                raise _wait_exc
         d.screenshot(f"symptom_success_{signal}")
         last_step = f"success_{signal}"
 
@@ -452,21 +479,41 @@ def _tap_symptom_item(
     # dismiss React Native bottom sheets on older Android (e.g. Android 10).
     # One page_source dump may also dismiss the picker, but we re-open it and
     # then tap with stored coordinates — no further find_element calls needed.
+    #
+    # NOTE: tried bypassing this with a plain `adb shell uiautomator dump`
+    # (AndroidDriver.dump_ui_xml_via_adb, still defined there and still
+    # useful for get_tab_badge_count below, which only ever runs between
+    # picker interactions, not concurrently with Appium's own instrumentation)
+    # to dodge page_source's dismissal side effect. Confirmed live
+    # (2026-09-16) that this does NOT work *during* an active Appium
+    # session specifically: the plain adb dump gets killed outright
+    # (subprocess returncode 137 / SIGKILL) because Android only allows one
+    # UiAutomator-based client registered at a time, and Appium's own
+    # UiAutomator2 instrumentation already holds that slot for the whole
+    # session. Reverted to page_source here for that reason -- this is a
+    # real constraint, not something to keep retrying around.
     try:
         xml = d.drv.page_source
+        d.reporter.log_event("symptom_strategy0_dump", {
+            "via": "appium_page_source",
+            "xml_len": len(xml) if xml else 0,
+        })
         coords_0 = _find_coords_in_xml(xml, texts)
+        d.reporter.log_event("symptom_strategy0_coords", {"coords": coords_0})
         if coords_0:
             cx0, cy0 = coords_0
             logging.info("[SYMPTOM] strategy=page_source_coords cx=%d cy=%d", cx0, cy0)
             # Re-open picker if page_source dismissed it
             if picker_title and not d.is_visible_text(picker_title, timeout=2):
                 logging.info("[SYMPTOM] picker dismissed by page_source, re-opening")
+                d.reporter.log_event("symptom_strategy0_picker_was_dismissed", {})
                 _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
                 d.tap_text(_symptom_add, timeout=8, contains=True)
                 _wait_for_picker(d, picker_title, timeout=8)
             d.drv.execute_script("mobile: clickGesture", {"x": cx0, "y": cy0})
             d.wait_idle(1.0)
             picker_still_open = picker_title and d.is_visible_text(picker_title, timeout=1)
+            d.reporter.log_event("symptom_strategy0_tapped", {"picker_still_open": bool(picker_still_open)})
             if picker_still_open:
                 logging.info("[SYMPTOM] success via page_source_coords (multi-select)")
                 return
@@ -476,13 +523,32 @@ def _tap_symptom_item(
                 sig = d.wait_for_symptom_success(timeout=8)
                 logging.info("[SYMPTOM] success via page_source_coords (%s)", sig)
                 return
-            except Exception:
-                pass
+            except Exception as _sig_exc:
+                d.reporter.log_event("symptom_strategy0_no_success_signal", {"error": str(_sig_exc)})
             logging.info("[SYMPTOM] page_source_coords: no success indicator within 8s, "
                          "falling through to element-based strategies")
         else:
             logging.info("[SYMPTOM] page_source_coords: target not found in XML, "
                          "falling through")
+            # The page_source dump itself can dismiss the React Native
+            # bottom sheet (see this function's own docstring/comment
+            # above) even when the target text wasn't found in the
+            # dumped XML -- confirmed live (2026-09-16) as a real,
+            # reproducible false failure on a device/language combo
+            # where _find_coords_in_xml never matches: the element-based
+            # fallback loop below then finds nothing (the picker is
+            # already gone), sees picker_title not visible, and raises
+            # "closed unexpectedly" even though nothing external closed
+            # it -- this same page_source call did, moments ago, and no
+            # tap has happened yet so there's nothing to lose by
+            # re-opening. Mirrors the coords_0-found branch's own
+            # re-open logic above, just for the "never found anything to
+            # tap" case instead.
+            if picker_title and not d.is_visible_text(picker_title, timeout=2):
+                logging.info("[SYMPTOM] picker dismissed by page_source (no coords found), re-opening")
+                _symptom_add = d.sel.get("symptom_add_text", ["증상 추가", "Add Symptom"])
+                d.tap_text(_symptom_add, timeout=8, contains=True)
+                _wait_for_picker(d, picker_title, timeout=8)
     except Exception as e:
         logging.info("[SYMPTOM] strategy=page_source_coords error: %s", e)
 

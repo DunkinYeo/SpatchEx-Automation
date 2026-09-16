@@ -457,21 +457,47 @@ class AndroidDriver:
 
     def wait_for_symptom_success(self, timeout: int = 10) -> str:
         """
-        Wait for one of two success signals after symptom submission:
-          1. symptom_success_signal_text  — configured toast/confirmation text
-          2. symptom_add_text             — back on main measurement screen
+        Wait for confirmation that a symptom was actually registered.
 
-        Returns the name of the signal that was detected first.
-        Raises RuntimeError if neither appears within timeout.
+        `symptom_add_text` ("back on the main measurement screen") is NOT a
+        valid success signal on its own -- confirmed live (2026-09-16) as a
+        real false-positive bug: that screen is what the picker closes back
+        to on ANY dismissal, tap-succeeded or not (e.g. a coordinate tap
+        that misses the target, or a stray dismiss), so treating it as
+        success let a run report "ok" while the Diary tab held only a
+        stale entry from a much earlier, genuinely-successful run -- no new
+        entry was ever created. When `symptom_success_signal_text` is
+        configured, it is the only accepted proof (a real toast/confirmation
+        the app only shows after an actual registration); `symptom_add_text`
+        is checked only to detect that the attempt is *over* (so the caller
+        can stop waiting and fail fast) -- reaching it without the success
+        signal is a failure, not a maybe-success. Only when no
+        `symptom_success_signal_text` is configured at all (nothing better
+        available for that app) does `symptom_add_text` remain the fallback
+        signal, same as before.
+
+        Returns the name of the signal that was detected.
+        Raises RuntimeError if success was not confirmed within timeout.
         """
         success_signal = self.sel.get("symptom_success_signal_text")
         main_indicator = self.sel.get("symptom_add_text", "Add Symptom")
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if success_signal and self.is_visible_text(success_signal):
-                return "success_signal"
-            if self.is_visible_text(main_indicator):
+            if success_signal:
+                if self.is_visible_text(success_signal):
+                    return "success_signal"
+                if self.is_visible_text(main_indicator):
+                    # Attempt is over (back on the main screen) but the one
+                    # real success signal never showed -- fail now rather
+                    # than keep polling for something that isn't coming.
+                    raise RuntimeError(
+                        f"Symptom success not confirmed: back on the main "
+                        f"screen ('{main_indicator}') without seeing the "
+                        f"expected confirmation '{success_signal}' -- the "
+                        f"tap likely didn't actually register anything."
+                    )
+            elif self.is_visible_text(main_indicator):
                 return "main_screen"
             time.sleep(0.5)
 
@@ -518,3 +544,121 @@ class AndroidDriver:
             "android_version": _prop("ro.build.version.release"),
             "udid": udid,
         }
+
+    def dump_ui_xml_via_adb(self, timeout: float = 5.0) -> str | None:
+        """UI hierarchy XML via the plain `adb shell uiautomator dump` binary,
+        bypassing Appium's own `driver.page_source` entirely. Returns None on
+        any failure (caller should fall back to `driver.page_source`).
+
+        Confirmed live (2026-09-16) as the fix for a real, reproducible bug:
+        Appium's `page_source` call goes through the on-device UiAutomator2
+        *instrumentation* (an Appium-injected accessibility service), and
+        that call itself can dismiss a transient React Native bottom sheet
+        (e.g. the symptom picker) as a side effect — this is why
+        `_tap_symptom_item` (symptom_inject.py) already avoids calling
+        page_source while the picker is open, per its own comment. But its
+        "strategy 0" fallback still needs *some* one-shot XML dump to find
+        tap coordinates without polling (polling via find_element has the
+        same dismissal risk). The plain `uiautomator dump` shell command
+        talks to Android's UiAutomator service directly, not through
+        Appium's injected instrumentation, so it doesn't trigger the same
+        accessibility-event side effect — confirmed by direct comparison on
+        a real device: an Appium `page_source` call during an open picker
+        returned XML with no trace of the picker's own items, while an
+        `adb shell uiautomator dump` immediately after found them (correct
+        `content-desc` on the tappable container) with the picker still
+        open afterward, unaffected by the query."""
+        udid = self.cfg.get("udid", "")
+        adb = ["adb"] + (["-s", udid] if udid else [])
+        remote_path = "/sdcard/exautomation_ui_dump.xml"
+        try:
+            dump_proc = subprocess.run(
+                adb + ["shell", "uiautomator", "dump", remote_path],
+                capture_output=True, timeout=timeout,
+            )
+            if dump_proc.returncode != 0:
+                self.reporter.log_event("dump_ui_xml_via_adb_failed", {
+                    "stage": "dump", "returncode": dump_proc.returncode,
+                    "stderr": dump_proc.stderr.decode("utf-8", errors="replace")[:500],
+                    "stdout": dump_proc.stdout.decode("utf-8", errors="replace")[:500],
+                })
+                return None
+            out = subprocess.check_output(
+                adb + ["shell", "cat", remote_path], timeout=timeout,
+            )
+            return out.decode("utf-8", errors="replace")
+        except Exception as e:
+            self.reporter.log_event("dump_ui_xml_via_adb_failed", {
+                "stage": "exception", "error": str(e),
+            })
+            return None
+
+    def get_tab_badge_count(self, tab_text: str | list[str]) -> int:
+        """Numeric badge count shown on a bottom-nav-style tab (e.g. the
+        "Diary" tab's own unread-count pill), read from a fresh
+        `dump_ui_xml_via_adb()` dump. Returns 0 if the tab isn't found, has
+        no badge, or the dump itself fails -- callers should treat 0 as
+        "no evidence of a badge", not necessarily "definitely zero".
+
+        Added (2026-09-16) as a genuine, app-state-verifying success signal
+        for symptom injection: confirmed live that this app shows NO
+        distinct success toast at all after registering a symptom (a
+        configured `symptom_success_signal_text` selector for one was
+        simply wrong -- no such text exists in this app build) -- it only
+        silently increments this badge. Comparing this count before/after
+        is the one thing that's actually proof a tap registered, as
+        opposed to "we're back on the main screen", which is equally true
+        whether the tap worked or not.
+
+        Tries `dump_ui_xml_via_adb()` first, falling back to
+        `driver.page_source`. Unlike `_tap_symptom_item`'s own strategy-0
+        (which must avoid page_source while the picker is open -- see that
+        function's comments), this method is only ever called with no
+        picker open (right before opening it, and after it has already
+        closed), so page_source's dismissal side effect does not apply
+        here -- it's a safe, always-available fallback for exactly the
+        adb-dump-vs-active-Appium-session conflict documented on
+        `dump_ui_xml_via_adb` (SIGKILL/returncode 137 while a session is
+        live)."""
+        texts = [tab_text] if isinstance(tab_text, str) else list(tab_text)
+        xml = self.dump_ui_xml_via_adb() or self.drv.page_source
+        if not xml:
+            return 0
+        import re
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml)
+        except Exception:
+            return 0
+
+        def _bounds(node):
+            m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+            return tuple(int(g) for g in m.groups()) if m else None
+
+        tab_bounds = None
+        for node in root.iter():
+            node_text = node.get("text", "")
+            node_desc = node.get("content-desc", "")
+            if any(t and (t == node_text or t == node_desc) for t in texts):
+                b = _bounds(node)
+                if b:
+                    tab_bounds = b
+                    break
+        if not tab_bounds:
+            return 0
+        tx1, ty1, tx2, ty2 = tab_bounds
+        # The badge is a numeric-only TextView positioned over the tab
+        # (confirmed live: NOT a DOM descendant of the tab's own node --
+        # it's a sibling overlay whose bounds spatially overlap the tab's)
+        # -- so this matches by bounds containment, not tree structure.
+        for node in root.iter():
+            ct = (node.get("text") or "").strip()
+            if not ct.isdigit():
+                continue
+            b = _bounds(node)
+            if not b:
+                continue
+            bx1, by1, bx2, by2 = b
+            if bx1 >= tx1 - 10 and bx2 <= tx2 + 10 and by1 >= ty1 - 10 and by2 <= ty2 + 10:
+                return int(ct)
+        return 0
