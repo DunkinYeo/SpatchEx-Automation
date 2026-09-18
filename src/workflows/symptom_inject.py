@@ -205,8 +205,31 @@ def inject_symptom_event(
         last_step = "picker_open"
 
         # ── 4. Select each symptom ────────────────────────────────────
+        # _tap_symptom_item raising here used to skip straight past step 9's
+        # diary-badge fallback (that block only wraps wait_for_symptom_success,
+        # called *after* this loop returns normally) -- confirmed live
+        # (2026-09-17, Korean-language device) as a real, damaging gap: the
+        # tap itself succeeded every time (Diary badge 1→2→3 across three
+        # attempts), _tap_symptom_item's own internal wait_for_symptom_success
+        # just never saw its configured signal text on this device/app-version
+        # and raised "picker closed unexpectedly" instead -- which this
+        # function's @retry(tries=3) decorator then took as a real failure and
+        # retried, creating two genuinely duplicate symptom entries in the
+        # process. Same rescue as step 9's, applied here too so a raise from
+        # _tap_symptom_item gets one last chance to be recognized as the
+        # success it actually was before being treated as a real failure.
         for s in symptoms:
-            _tap_symptom_item(d, s, picker_title=picker_title)
+            try:
+                _tap_symptom_item(d, s, picker_title=picker_title)
+            except Exception as _tap_exc:
+                _diary_mid = d.get_tab_badge_count(diary_tab_text)
+                d.reporter.log_event(
+                    "symptom_tap_diary_badge_check",
+                    {"before": _diary_before, "after": _diary_mid, "symptom": s},
+                )
+                if _diary_mid <= _diary_before:
+                    raise
+                d.reporter.log_event("symptom_tap_rescued_by_diary_badge", {"symptom": s})
         last_step = "symptoms_selected"
 
         # ── 5. Handle 'Other' free-text input ────────────────────────
