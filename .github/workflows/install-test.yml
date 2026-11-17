@@ -1,20 +1,27 @@
 name: Install Test (Fresh Environment)
 
+# CI budget (2026-11-17): this runs one macOS job (10x Linux minutes) and
+# one Windows job (2x). It used to run on every push to main/feature
+# branches and on every PR regardless of what changed. Now it runs only on
+# PRs that touch the install files below, and on manual dispatch.
 on:
-  push:
-    branches: [main, feature/**]
+  pull_request:
+    branches: [main]
     paths:
       - 'install.sh'
       - 'install.bat'
+      - 'install.command'
       - 'bootstrap.sh'
       - 'bootstrap.ps1'
       - 'run.command'
       - 'run.bat'
       - 'requirements.txt'
       - '.github/workflows/install-test.yml'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ── macOS — install.sh + verify ──────────────────────────────────────────
