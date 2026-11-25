@@ -7,6 +7,7 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 
+from src.adb_bluetooth import set_bluetooth
 from src.driver import AndroidDriver
 from src.sleep_utils import sleep_with_heartbeat
 
@@ -82,9 +83,9 @@ def _tap_by_text_via_adb(driver: AndroidDriver, adb: list[str], texts: list[str]
 
 def _bt_is_on(adb: list[str]) -> bool | None:
     """Ground-truth Bluetooth radio state, read straight from Settings --
-    `svc bluetooth` can fail silently (see this module's own comment below)
-    so a caller cannot trust its own success just because the command
-    returned. Returns None if the state itself couldn't be read (treat as
+    an adb toggle command can fail silently (see _toggle_bluetooth's
+    docstring) so a caller cannot trust its own success just because the
+    command returned. Returns None if the state itself couldn't be read (treat as
     unknown, not as a specific on/off answer)."""
     try:
         r = subprocess.run(adb + ["shell", "settings", "get", "global", "bluetooth_on"],
@@ -102,11 +103,20 @@ _REQUEST_ACTION = {
 _ALLOW_TEXT = ["허용", "Allow"]
 
 
-def _svc_bluetooth(driver: AndroidDriver, enable: bool) -> tuple[bool, str]:
+def _toggle_bluetooth(driver: AndroidDriver, enable: bool) -> tuple[bool, str]:
     """Toggles Bluetooth and verifies the radio actually changed state, not
-    just that a command exited -- tries the fast plain-`svc` path first,
-    then falls back to the standard Android consent-dialog flow if that
-    didn't really work.
+    just that a command exited -- tries the adb ways first (svc, cmd
+    bluetooth_manager, then the Appium Settings broadcast; see
+    src/adb_bluetooth.py), each until bluetooth_on reads the wanted value,
+    and only then falls back to the standard Android consent-dialog flow.
+
+    2026-11-25: on the Galaxy A32 the Appium Settings broadcast
+    (io.appium.settings, installed with UiAutomator2, holds
+    BLUETOOTH_ADMIN) turns BT off and on with no dialog and without leaving
+    the app under test, so the consent-dialog flow below is now a last
+    resort for a phone where none of the adb ways works. `cmd
+    bluetooth_manager` prints "No shell command implementation" with exit 0
+    there, which adb_bluetooth.accepted() does not take for success.
 
     Confirmed live (2026-09-21, Galaxy A32 / Android 11 / One UI) as a real,
     silent failure mode: `svc bluetooth disable` can throw a
@@ -139,12 +149,12 @@ def _svc_bluetooth(driver: AndroidDriver, enable: bool) -> tuple[bool, str]:
     adb = ["adb"] + (["-s", udid] if udid else [])
     action = "enable" if enable else "disable"
 
-    result = subprocess.run(adb + ["shell", "svc", "bluetooth", action],
-                             capture_output=True, timeout=10, text=True)
-    if result.returncode == 0 and _bt_is_on(adb) == enable:
+    way, _ = set_bluetooth(adb, on=enable, wait_sec=10)
+    if way:
+        log.info("[bt_disconnect] BT %sd via: %s", action, way)
         return True, ""
 
-    log.info("[bt_disconnect] svc bluetooth %s didn't take -- falling back to consent-dialog flow", action)
+    log.info("[bt_disconnect] no adb way (svc, cmd, Appium Settings) turned BT %s -- falling back to consent-dialog flow", action)
     subprocess.run(adb + ["shell", "am", "start", "-a", _REQUEST_ACTION[enable]],
                     capture_output=True, timeout=10)
     driver.wait_idle(1.5)
@@ -161,22 +171,22 @@ def _svc_bluetooth(driver: AndroidDriver, enable: bool) -> tuple[bool, str]:
     # stay within the target app's own context), so the scenario is left
     # on the Bluetooth settings screen, not the app under test, regardless
     # of whether the toggle itself succeeded. Restoring foreground here --
-    # not left to the caller -- means every _svc_bluetooth caller gets this
+    # not left to the caller -- means every _toggle_bluetooth caller gets this
     # for free and a tester watching only the web dashboard never sees the
     # run stuck looking like it's doing nothing on a screen they can't see.
     driver.bring_to_foreground()
 
     if tap_error is not None:
-        return False, f"svc bluetooth {action} failed and the consent-dialog fallback also failed: {tap_error}"
+        return False, f"adb bluetooth {action} (svc, cmd, Appium Settings) failed and the consent-dialog fallback also failed: {tap_error}"
     if state is None:
-        return False, f"svc bluetooth {action} and the consent-dialog fallback both ran, but bluetooth_on state could not be read afterward"
+        return False, f"adb bluetooth {action} (svc, cmd, Appium Settings) and the consent-dialog fallback both ran, but bluetooth_on state could not be read afterward"
     if state != enable:
-        return False, f"svc bluetooth {action} and the consent-dialog fallback both ran, but bluetooth_on is still {'on' if state else 'off'} afterward"
+        return False, f"adb bluetooth {action} (svc, cmd, Appium Settings) and the consent-dialog fallback both ran, but bluetooth_on is still {'on' if state else 'off'} afterward"
     return True, ""
 
 
 def _verify_disconnected_ui(driver: AndroidDriver) -> None:
-    """After the disable half of _svc_bluetooth reports success, confirms
+    """After the disable half of _toggle_bluetooth reports success, confirms
     the app itself actually shows a disconnected state -- symmetric to
     _ensure_reconnected's own "did it actually reconnect" check on the
     re-enable side, and for the same reason: `_bt_is_on` only reads the OS
@@ -217,12 +227,12 @@ def _verify_disconnected_ui(driver: AndroidDriver) -> None:
 def run_bt_disconnect(driver: AndroidDriver, disconnect_minutes: float) -> None:
     """Disable Bluetooth for `disconnect_minutes`, then re-enable. Raises
     RuntimeError (does NOT silently return) if either toggle didn't
-    actually take effect -- see _svc_bluetooth's own docstring for why a
+    actually take effect -- see _toggle_bluetooth's own docstring for why a
     caller can't trust a clean subprocess exit alone here."""
     driver.reporter.log_event("bt_disconnect_start", {"minutes": disconnect_minutes})
     log.info("[bt_disconnect] Disabling BT for %.1f min", disconnect_minutes)
 
-    ok, err = _svc_bluetooth(driver, enable=False)
+    ok, err = _toggle_bluetooth(driver, enable=False)
     if not ok:
         log.warning("[bt_disconnect] disable failed: %s", err)
         driver.reporter.log_event("bt_disconnect_failed", {"phase": "disable", "error": err})
@@ -232,7 +242,7 @@ def run_bt_disconnect(driver: AndroidDriver, disconnect_minutes: float) -> None:
 
     sleep_with_heartbeat(driver, disconnect_minutes * 60, log_prefix="bt_disconnect")
 
-    ok, err = _svc_bluetooth(driver, enable=True)
+    ok, err = _toggle_bluetooth(driver, enable=True)
     if not ok:
         log.warning("[bt_disconnect] re-enable failed: %s", err)
         driver.reporter.log_event("bt_disconnect_failed", {"phase": "enable", "error": err})

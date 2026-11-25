@@ -1,5 +1,11 @@
 # Changelog — S-Patch Ex Automation
 
+## 2026-11-25
+
+### Fixed
+- 휴대폰 블루투스 on/off를 공용 헬퍼(`src/adb_bluetooth.py`, MA-automation에서 이식)로 일원화 — `svc bluetooth` → `cmd bluetooth_manager` → Appium Settings broadcast(`io.appium.settings`, UiAutomator2와 함께 설치, BLUETOOTH_ADMIN 보유) 순서로 시도하고, 각 단계마다 `bluetooth_on`이 원하는 값이 될 때까지 확인. `bt_disconnect` 워크플로우가 사용.
+- Galaxy A32(삼성, Android 11)에서는 `svc bluetooth disable`이 kill(exit 137)되고, `cmd bluetooth_manager`는 "No shell command implementation"을 출력하면서 exit 0을 반환(이제 성공으로 보지 않음), shell에는 BLUETOOTH_ADMIN이 없음 — broadcast만 동작(실기기 확인). 기존 동의 다이얼로그(REQUEST_ENABLE/DISABLE + "허용" 탭) 방식은 adb 방법이 모두 실패한 경우의 마지막 대안으로 유지.
+
 ## 2026-09-10
 
 ### Fixed
